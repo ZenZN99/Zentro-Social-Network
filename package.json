@@ -1,0 +1,28 @@
+{
+  "name": "my-riser-bob-app",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/launch.ts",
+    "build": "bun build src/launch.ts --target=bun --outdir dist --minify",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@riser-bob/cloudinary": "^1.0.0",
+    "@riser-bob/cookie": "^0.1.1",
+    "@riser-bob/jwt": "^1.0.0",
+    "@socket.io/bun-engine": "^0.1.2",
+    "@types/pg": "^8.23.1",
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1",
+    "riser-bob": "^1.2.4",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
