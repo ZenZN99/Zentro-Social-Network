@@ -55,7 +55,7 @@ It runs on **Bun + TypeScript + PostgreSQL**, is built on **[RiserBob](https://g
 ### 1. Clone and install
 
 ```bash
-git clone github.com/ZenZN99/Zentro-Social-Media-App zentro
+git clone github.com/ZenZN99/Zentro-Social-Network zentro
 cd zentro/backend
 bun install
 ```
