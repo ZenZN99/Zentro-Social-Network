@@ -14,7 +14,7 @@ export class CommentsRouter {
   register(): void {
     // Public routes
     this.bob.spongGroup('/api/comments', (group) => {
-      group.spongGet('/', this.controller.findAll)
+      group.spongGet('/:postId/all', this.controller.findAll)
       group.spongGet('/:commentId', this.controller.findOne)
 
       // Protected routes
@@ -22,7 +22,7 @@ export class CommentsRouter {
         '/',
         (group) => {
           group.spongGet('/me', this.controller.findMe)
-          group.spongPost('/', this.controller.create)
+          group.spongPost('/:postId', this.controller.create)
           group.spongPut('/:commentId', this.controller.update)
           group.spongDelete('/:commentId', this.controller.delete)
         },
