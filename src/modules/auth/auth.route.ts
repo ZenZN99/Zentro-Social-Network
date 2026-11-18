@@ -12,8 +12,8 @@ export class AuthRouter {
   register(): void {
     // Public routes
     this.bob.spongGroup('/api/auth', (group) => {
-      group.spongGet('/register', this.controller.register)
-      group.spongGet('/login', this.controller.login)
+      group.spongPost('/register', this.controller.register)
+      group.spongPost('/login', this.controller.login)
       group.spongPost('/refreshToken', this.controller.refreshToken)
 
       // Protected routes
