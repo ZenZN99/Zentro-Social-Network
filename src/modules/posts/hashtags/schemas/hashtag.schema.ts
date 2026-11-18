@@ -5,7 +5,7 @@ export const HashtagSchema = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
 
-    name: varchar('name', { length: 100 }).notNull().unique(),
+    name: varchar('name', { length: 100 }).notNull(),
 
     postsCount: integer('postsCount').notNull().default(0),
 
