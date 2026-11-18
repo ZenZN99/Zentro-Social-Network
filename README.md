@@ -8,6 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Drizzle_ORM-4169E1?logo=postgresql&logoColor=white)](https://orm.drizzle.team)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-real--time-010101?logo=socketdotio&logoColor=white)](https://socket.io)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)](#-api-documentation-openapi)
 [![Tests](https://img.shields.io/badge/tests-1219_passing-2ea44f)](#-testing-strategy)
 [![Framework](https://img.shields.io/badge/framework-RiserBob-ff9f1c)](https://github.com/ZenZN99/RiserBob)
 
@@ -25,14 +26,14 @@
 
 Zentro is the backend of a Threads-like social network: posts with images, hashtags, mentions, quotes and reposts, threaded comments and replies, follows, likes, bookmarks, direct messages, live notifications, online presence, identity verification and a support desk.
 It runs on **Bun + TypeScript + PostgreSQL**, is built on **[RiserBob](https://github.com/ZenZN99/RiserBob)**, a framework I wrote from scratch, and is protected by **1,219 automated tests**.
-
-
+The API is documented with **OpenAPI 3.1** and can be explored and tested live in **Swagger UI**, straight from the running server.
 
 ---
 
 ## Table of Contents
 
 - [Getting Started](#-getting-started)
+- [API Documentation (OpenAPI)](#-api-documentation-openapi)
 - [Architecture](#-architecture)
 - [Testing Strategy](#-testing-strategy)
 - [Problems I Faced and How I Solved Them](#-problems-i-faced-and-how-i-solved-them)
@@ -92,35 +93,31 @@ bun -e "console.log(crypto.randomUUID() + crypto.randomUUID())"
 
 ### 3. Create the database schema
 
-The schema lives in code (`src/modules/**/schemas/*.schema.ts`, 19 tables). Create the database, then let [drizzle-kit](https://orm.drizzle.team/docs/kit-overview) materialize it.
+The schema lives in code (`src/modules/**/schemas/*.schema.ts`, 19 tables) and is versioned with [Drizzle](https://orm.drizzle.team/docs/kit-overview) migrations. The repository ships the migration setup, so there is nothing to create by hand:
+
+| Path | Purpose |
+| --- | --- |
+| `drizzle.config.ts` | drizzle-kit configuration (dialect, schema glob, output folder, database credentials from `.env`) |
+| `drizzle/` | Generated SQL migrations, committed to the repository |
+| `src/config/db/migrations.ts` | Migration configuration and execution for the application |
+
+Create the database, then apply the migrations:
 
 ```bash
 createdb zentro                       # or create it from your SQL client
-bun add pg                            # PostgreSQL driver used by src/config/db/drizzle.ts
-bun add -d drizzle-kit
+bun add pg                            # PostgreSQL driver used by src/config/db/drizzle.ts (if not installed yet)
+bun add -d drizzle-kit                # only if drizzle-kit is not installed yet
+bunx drizzle-kit migrate              # apply the committed migrations from ./drizzle
 ```
 
-Create `drizzle.config.ts` in the `backend/` folder:
+When you change a schema file, generate a new migration and apply it:
 
-```ts
-import { defineConfig } from 'drizzle-kit'
-
-export default defineConfig({
-  dialect: 'postgresql',
-  schema: './src/modules/**/schemas/*.schema.ts',
-  out: './drizzle',
-  dbCredentials: {
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT || 5432),
-    database: process.env.DB_NAME!,
-    user: process.env.DB_USERNAME!,
-    password: process.env.DB_PASSWORD!,
-    ssl: process.env.DB_SSL === 'true',
-  },
-})
+```bash
+bunx drizzle-kit generate             # writes a new SQL migration into ./drizzle
+bunx drizzle-kit migrate
 ```
 
-Then push the schema:
+For a throwaway local database you can still sync the schema directly without creating migration files:
 
 ```bash
 bunx drizzle-kit push
@@ -144,6 +141,8 @@ curl http://localhost:4000/
 # {"message":"Welcome to Bikini Bottom! 🍍"}
 ```
 
+Then open the interactive API reference at **<http://localhost:4000/docs>**. See [API Documentation (OpenAPI)](#-api-documentation-openapi).
+
 ### 5. Promote your first admin
 
 New accounts are always created with the `user` role. Register once, then promote the account in SQL. After that, admins can change roles through the API.
@@ -162,6 +161,126 @@ UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
 | `bun run typecheck` | Strict TypeScript check (`tsc --noEmit`) |
 | `bun run src/launch.ts` | Production start (Bun executes TypeScript directly) |
 | `bun build src/launch.ts --outdir dist --target bun --minify` | Optional single-file bundle, run with `bun dist/launch.js` |
+| `bunx drizzle-kit generate` | Generate a new migration from schema changes |
+| `bunx drizzle-kit migrate` | Apply committed migrations to the configured database |
+
+---
+
+## 📖 API Documentation (OpenAPI)
+
+<div align="center">
+
+**Explore every Zentro endpoint in your browser. No Postman collection, no separate docs site.**
+
+| Swagger UI | OpenAPI JSON |
+| :---: | :---: |
+| [`http://localhost:4000/docs`](http://localhost:4000/docs) | [`http://localhost:4000/docs/json`](http://localhost:4000/docs/json) |
+
+</div>
+
+Zentro ships with a complete, interactive API reference built on **[`@riser-bob/openapi`](https://github.com/ZenZN99/RiserBob)**. The documentation is generated from a single, centralized configuration, served by the same Bun process as the API itself, and **checked against the routes that are really registered**, so it describes the API that exists, not the API someone remembers.
+
+### What you get
+
+| Capability | Details |
+| --- | --- |
+| **OpenAPI 3.1 document** | A standard specification you can feed to client generators, linters and API gateways |
+| **Swagger UI** | Interactive exploration and "Try it out" requests, served locally from your own server. No CDN and no inline scripts |
+| **Raw JSON specification** | A machine-readable endpoint, always in sync with the running code |
+| **Centralized definitions** | All route documentation lives in `src/openapi/`, organized by module |
+| **Strict validation** | A required documented route that is not registered makes startup fail with a hint, instead of shipping stale docs |
+| **Cookie authentication** | The `CookieAuth` security scheme documents how protected endpoints authenticate |
+
+### Open it
+
+Start the server and the documentation is available immediately:
+
+```bash
+bun run dev
+```
+
+```bash
+# Interactive reference (open in your browser)
+http://localhost:4000/docs
+
+# Raw OpenAPI 3.1 specification
+curl http://localhost:4000/docs/json
+# {"openapi":"3.1.0", ...}
+```
+
+The JSON endpoint is what you point tools at, for example to generate a typed client or to import the API into an HTTP client.
+
+> The port comes from the server configuration (**4000**). Deployed behind another host, replace `http://localhost:4000` with your own origin.
+
+### Test the API interactively
+
+Swagger UI is served by the API itself, so every request you send from it goes straight to the same server.
+
+1. Open `/docs` and pick an endpoint from its module group.
+2. Click **Try it out**, fill in the parameters or the request body (the schemas come from the same validation rules the API enforces) and press **Execute**.
+3. Read the real status code, response body and headers returned by your running instance.
+
+Because the page is served with a strict `Content-Security-Policy`, "Try it out" can only call its own origin. That is deliberate: the docs cannot be used to send requests anywhere else.
+
+### Authentication: the `CookieAuth` scheme
+
+Zentro does not use `Authorization` headers. Sessions travel in **httpOnly cookies** (see [Authentication and session design](#4-authentication-and-session-design)), and the OpenAPI documentation reflects that exactly: protected endpoints reference a **`CookieAuth`** security scheme, which OpenAPI describes as an API key carried in a cookie.
+
+| Aspect | How it works |
+| --- | --- |
+| Scheme name | `CookieAuth` |
+| Transport | An API key sent in a **cookie**, not in a header or query string |
+| What it documents | *How* an endpoint authenticates. Enforcement still belongs to the middleware pipeline (`auth → active → role`) |
+| Public endpoints | Documented without the scheme |
+
+To call a protected endpoint from Swagger UI:
+
+1. Use the login endpoint of the **Auth** group from Swagger UI.
+2. The server answers with `Set-Cookie` headers. The browser stores the httpOnly cookies for the same origin.
+3. Call any protected endpoint. The browser attaches the cookies automatically.
+
+> Swagger UI cannot set a `Cookie` header by itself, because browsers do not allow it. That is why the flow above signs in first: the cookie has to be held by the browser, on the same origin as the documentation.
+
+### How it is wired
+
+```mermaid
+flowchart LR
+  D["src/openapi/<br/>route definitions<br/>grouped by module"]
+  N["names-space-routes.ts<br/>unique key + operationId<br/>per route"]
+  C["OpenAPI configuration<br/>info, CookieAuth, routes"]
+  R["Registered RiserBob routes<br/>(all feature modules)"]
+  S["setup(app)<br/>called from src/launch.ts"]
+  UI["GET /docs<br/>Swagger UI"]
+  J["GET /docs/json<br/>OpenAPI 3.1"]
+
+  D --> N --> C --> S
+  R --> S
+  S -->|"strict validation"| UI
+  S --> J
+```
+
+- **Centralized.** `src/openapi/` holds the OpenAPI configuration and the route definitions, so documentation never leaks into controllers or route files.
+- **Startup integration.** The documentation is set up from `src/launch.ts`. The library requires `setup()` to run after every application route has been registered, because routes registered later are neither validated nor documented.
+- **Generated once.** The document is built and serialized at startup. Requests to the docs only send the stored result.
+- **No drift.** By default, every documented route must exist with the same method and path. Documentation for an endpoint that was never built is an error, and a typo in the configuration is reported instead of silently ignored.
+
+### Route namespaces: no endpoint silently disappears
+
+Route definitions are plain objects keyed by a documentation key, and that key becomes the endpoint's `operationId`. Every module naturally wants the same names (`create`, `findAll`, `findOne`), so merging module definitions with a spread overwrote earlier entries:
+
+```ts
+// Both objects define `create`, `findAll` and `findOne`.
+// The last spread wins, and the earlier endpoints vanish from the document.
+const routes = { ...postsDocs, ...commentsDocs }
+```
+
+`src/utilities/names-space-routes.ts` prevents this. It gives every route a **unique key and operation ID**, so combining the route objects of many modules never overwrites anything and all endpoints appear in the generated OpenAPI document.
+
+> The same rule is stated by the library: documentation keys must be unique across merged objects, because a later key replaces an earlier one with the same name.
+
+### Documented modules
+
+Route definitions were organized for the new documentation structure across the API, including Authentication, Bookmarks, Comments, Follows, Messages, Post reposts, Replies and Support messages. See the [API surface](#11-api-surface) for the full list of resource groups.
 
 ---
 
@@ -180,7 +299,9 @@ flowchart LR
     API["RiserBob HTTP server<br/>routing, CORS, logging,<br/>validation, auth pipeline"]
     MOD["Feature modules<br/>controller, service, schema"]
     RT["Socket.IO server<br/>cookie-auth handshake<br/>+ gateways"]
+    DOCS["OpenAPI documentation<br/>Swagger UI + JSON spec"]
     API --> MOD
+    API --> DOCS
     MOD -->|"push events"| RT
   end
 
@@ -340,6 +461,7 @@ Design choices that matter:
 - **Polymorphic likes without a polymorphic foreign key.** A like carries one nullable foreign key per target (`postId`, `commentId`, `replyId`), each with its own unique index and cascade rule, so referential integrity is real.
 - **Indexes follow the queries.** `posts(authorId, createdAt)`, `comments(postId, createdAt)`, `hashtags(postsCount)`, `notifications(receiverId)` and others exist because a service query sorts or filters on exactly those columns.
 - **Hashtag creation is race-safe.** `findOrCreate` uses `ON CONFLICT DO NOTHING` on the unique name, then re-reads.
+- **Schema changes are versioned.** Every change to a table is captured as a Drizzle migration in `drizzle/`, so any environment can be brought to the same schema with `drizzle-kit migrate`.
 
 ### 6. Consistency model: what is atomic and what is best-effort
 
@@ -418,6 +540,7 @@ Total counts reuse the same predicate, so pagination metadata can never disagree
 | Secrets | Environment variables only. `.env` is git-ignored and `.env.example` ships with placeholders |
 | Credential leakage | `sanitizeUser()` on every user payload, bcrypt cost 12 |
 | Account lifecycle | Admins can block a user. The block applies on the next request and the user is notified |
+| API documentation | Served locally with a strict `Content-Security-Policy` (no CDN, no inline scripts). It only describes authentication and never issues, reads or stores tokens |
 
 ### 10. Failure-mode matrix
 
@@ -430,10 +553,11 @@ Total counts reuse the same predicate, so pagination metadata can never disagree
 | Recipient offline | Nothing is lost | Notification is persisted, the socket push is skipped |
 | Socket without a valid cookie | Handshake rejected | Never reaches a gateway |
 | Blocked account with a still-valid token | `403` on the next request | `isActive` is read from the database |
+| A documented route is not registered | Server fails at startup with a hint | Stale documentation is never served |
 
 ### 11. API surface
 
-73 route registrations across 16 resource groups. Protected routes run `auth → active`; admin routes add the role gate.
+73 route registrations across 16 resource groups. Protected routes run `auth → active`; admin routes add the role gate. Every group is browsable in [Swagger UI](#-api-documentation-openapi).
 
 | Group | Prefix | Highlights |
 | --- | --- | --- |
@@ -453,6 +577,8 @@ Total counts reuse the same predicate, so pagination metadata can never disagree
 | Notifications | `/api/notifications` | `me`, mark one or all as read, delete |
 | Verifications | `/api/user-verifications` | submit documents. Admin: pending queue and approve or reject |
 | Support | `/api/support-conversations`, `/api/support-messages` | tickets and messages. Admin and support staff see the queue, admins open or close tickets |
+
+On top of the application routes, the OpenAPI integration registers its own documentation routes: the Swagger UI page at `/docs`, the specification at `/docs/json` and the static Swagger UI assets under `/docs/assets/`.
 
 > Note on the current auth routes: `register` and `login` are registered with the `GET` verb in `src/modules/auth/auth.route.ts`, exactly as listed above in the code.
 
@@ -619,11 +745,17 @@ These are the real engineering problems this codebase had to survive. Each one i
 
 **Solution.** I built the `FakeDb` and `QueryChain` simulator described above, where every awaited query consumes exactly one scripted outcome. It exposed a classic trap I hit myself: when a test scripts fewer or more outcomes than the service actually runs, the failure is `No mock outcome available` or a wrong result, and the production code is **not** the thing that is wrong. The fix is always to trace the real execution order, including queries inside transactions, conditional branches and loops. That rule is now written down in `AGENTS.md` and `CLAUDE.md` so humans and AI assistants follow it.
 
+### 13. Endpoints silently missing from the API documentation
+
+**Problem.** Route documentation is a plain object keyed by name, and that key becomes the `operationId`. Every module wants the same keys (`create`, `findAll`, `findOne`), so spreading several route objects together let later entries overwrite earlier ones. The server kept working, but endpoints quietly vanished from the generated OpenAPI document.
+
+**Solution.** `src/utilities/names-space-routes.ts` namespaces every route, giving each one a unique key and operation ID before the objects are combined. Nothing can be overwritten, and every endpoint appears in Swagger UI and in the JSON specification.
+
 ---
 
 ## 🧽 Built on RiserBob
 
-Zentro runs on **[RiserBob](https://github.com/ZenZN99/RiserBob)**, a Bun and TypeScript backend framework that I designed and built from scratch. Zentro is its largest real-world consumer: 73 routes, cookie authentication, role pipelines, file uploads and Socket.IO all run through it, which makes the app a continuous proving ground for the framework.
+Zentro runs on **[RiserBob](https://github.com/ZenZN99/RiserBob)**, a Bun and TypeScript backend framework that I designed and built from scratch. Zentro is its largest real-world consumer: 73 routes, cookie authentication, role pipelines, file uploads, Socket.IO and generated API documentation all run through it, which makes the app a continuous proving ground for the framework.
 
 **Repository:** <https://github.com/ZenZN99/RiserBob> · **Docs:** <https://riserbob.vercel.app/docs>
 
@@ -644,6 +776,7 @@ bun add riser-bob
 | `@riser-bob/jwt` | `JwtManager` with separate access and refresh secrets, issuer and audience |
 | `@riser-bob/cookie` | `CookieManager` for httpOnly session cookies |
 | `@riser-bob/cloudinary` | Image and file upload and deletion |
+| `@riser-bob/openapi` | OpenAPI 3.1 documentation, Swagger UI, the JSON specification and the `CookieAuth` security scheme, checked against the registered routes |
 
 ---
 
@@ -659,7 +792,7 @@ An honest architecture document names its limits.
 | Refresh tokens | Hashed at rest, a refresh issues a new access token | Rotation with reuse detection |
 | Abuse protection | Validation and auth guards | Rate limiting on auth and write endpoints |
 | Test depth | 1,219 fast unit and controller tests against a simulated database | Integration suite against a real PostgreSQL in CI |
-| Schema management | Schema defined in code | Commit generated Drizzle migrations |
+| Schema management | Versioned Drizzle migrations committed in `drizzle/` | Apply and verify migrations against a real PostgreSQL in CI |
 
 **Production checklist**
 
@@ -667,6 +800,8 @@ An honest architecture document names its limits.
 - Set `DB_SSL=true` for hosted PostgreSQL.
 - Change `FRONTEND_URL` in `src/url.ts` to your real origin.
 - Use long, unique, different values for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`.
+- Apply the committed migrations (`bunx drizzle-kit migrate`) before starting a new version against an existing database.
+- Remember that API documentation reveals your endpoints, parameters and error responses. Decide whether `/docs` and `/docs/json` should be public in production, and protect them with RiserBob middleware or keep them off if they should not be.
 
 ---
 
@@ -674,18 +809,21 @@ An honest architecture document names its limits.
 
 ```text
 backend/
+├── drizzle.config.ts             # drizzle-kit configuration
+├── drizzle/                      # generated SQL migrations
 ├── src/
-│   ├── launch.ts                 # bootstrap: DB check, middleware, Socket.IO, modules, listen
+│   ├── launch.ts                 # bootstrap: DB check, middleware, Socket.IO, modules, OpenAPI, listen
 │   ├── modules.ts                # registers every feature module
 │   ├── url.ts                    # allowed frontend origin
+│   ├── openapi/                  # OpenAPI configuration + route definitions grouped by module
 │   ├── config/
 │   │   ├── adapters/             # Socket.IO cookie-auth handshake
 │   │   ├── cloudinary/           # upload client
-│   │   ├── db/                   # pg pool + Drizzle instance, connection check
+│   │   ├── db/                   # pg pool + Drizzle instance, connection check, migrations
 │   │   ├── gateways/             # presence, notifications, messages, notification events
 │   │   ├── middlewares/          # user-active, roles, protected pipeline
 │   │   └── token/                # JwtManager, verifyUser, token types
-│   ├── utilities/                # pagination, sanitize-user, generate-user-name
+│   ├── utilities/                # pagination, sanitize-user, generate-user-name, names-space-routes
 │   └── modules/
 │       ├── auth/  users/  user-profiles/  user-verifications/
 │       ├── posts/                # + hashtags, post-hashtags, post-mentions,
