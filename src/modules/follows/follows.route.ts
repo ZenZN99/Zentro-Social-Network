@@ -16,8 +16,8 @@ export class FollowsRouter {
     this.bob.spongGroup('/api/follows', (group) => {
       group.spongGet('/followers/:userId', this.controller.findFollowers)
       group.spongGet('/following/:userId', this.controller.findFollowing)
-      group.spongGet('/count-followers', this.controller.countFollowers)
-      group.spongGet('/count-following', this.controller.countFollowing)
+      group.spongGet('/count-followers/:userId', this.controller.countFollowers)
+      group.spongGet('/count-following/:userId', this.controller.countFollowing)
 
       // Protected routes
       group.spongGroup(
