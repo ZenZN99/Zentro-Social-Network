@@ -19,7 +19,7 @@ export class PostRepostsRouter {
       group.spongGroup(
         '/',
         (group) => {
-          group.spongPost('/', this.controller.repost)
+          group.spongPost('/:postId', this.controller.repost)
           group.spongGet('/me', this.controller.findMe)
         },
         this.authMiddleware.middleware,
