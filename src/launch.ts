@@ -4,11 +4,14 @@ import { FRONTEND_URL } from './url'
 import { PresenceGateway } from './config/gateways/presence.gateway'
 import { AuthSocketAdapter } from './config/adapters/socket.adapter'
 import { connectDB } from './config/db/connect-db'
+import openapi from './openapi/openapi'
+import { migrateDB } from './config/db/migrations'
 
 async function bootstrap() {
   const bob = new RiserBob()
 
   await connectDB()
+  await migrateDB()
 
   bob.spongUse(
     corsMiddleware({
@@ -44,6 +47,8 @@ async function bootstrap() {
   })
 
   Modules(bob, io)
+
+  openapi.setup(bob)
 
   bob.spongListen(4000, () => {
     console.log('🧽 RiserBob is running at http://localhost:4000 🍍')
