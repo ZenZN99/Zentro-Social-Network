@@ -20,7 +20,7 @@ export class MessagesRouter {
         group.spongPost('/:receiverId', this.controller.create)
         group.spongGet('/:conversationId', this.controller.findAll)
         group.spongPut('/:conversationId', this.controller.markAllAsRead)
-        group.spongGet('/:conversationId/count', this.controller.findUnreadCount)
+        group.spongGet('/:conversationId/unread-count', this.controller.findUnreadCount)
         group.spongDelete('/:messageId', this.controller.delete)
       },
       this.authMiddleware.middleware,
