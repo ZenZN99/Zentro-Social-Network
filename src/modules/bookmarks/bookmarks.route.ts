@@ -15,14 +15,14 @@ export class BookmarksRouter {
     // Public routes
 
     this.bob.spongGroup('/api/bookmarks', (group) => {
-      group.spongGet('/api/bookmarks/count/:postId', this.controller.countByPostId)
+      group.spongGet('/count/:postId', this.controller.countByPostId)
       group.spongGroup(
         '/',
         (group) => {
           // Protected routes
           group.spongPost('/:postId', this.controller.toggle)
           group.spongGet('/me', this.controller.findMe)
-          group.spongGet('/is-bookmarked', this.controller.isBookmarked)
+          group.spongGet('/is-bookmarked/:postId', this.controller.isBookmarked)
           group.spongGet('/count/me', this.controller.countMe)
         },
         this.authMiddleware.middleware,
