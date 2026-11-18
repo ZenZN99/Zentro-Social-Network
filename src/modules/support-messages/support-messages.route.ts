@@ -27,7 +27,7 @@ export class SupportMessagesRouter {
       group.spongGet('/:conversationId', this.controller.findAll, protectedMiddleware.auth())
       group.spongPut('/:conversationId', this.controller.markAllAsRead, protectedMiddleware.auth())
       group.spongDelete(
-        '/:coversationId/:messageId',
+        '/:conversationId/:messageId',
         this.controller.delete,
         protectedMiddleware.adminAndSupport(),
       )
