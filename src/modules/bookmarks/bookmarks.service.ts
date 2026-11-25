@@ -3,15 +3,15 @@ import { PostSchema } from '../posts/schemas/post.schema'
 import { buildPagination } from '../../utilities/pagination'
 import { UserSchema } from '../users/schemas/user.schema'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
-import type { database } from '../../config/db/drizzle'
+import type { Database, database } from '../../config/db/drizzle'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
-import { SpongNotFoundException } from 'riser-bob'
+import { NotFoundException } from 'lykosjs'
 
 export class BookmarksService {
-  constructor(private readonly db: typeof database) {}
+  constructor(private readonly db: Database) {}
 
   async toggle(userId: string, postId: string) {
-    return this.db.transaction(async (transaction) => {
+    return this.db.connection.transaction(async (transaction) => {
       const [post] = await transaction
         .select()
         .from(PostSchema)
@@ -20,7 +20,7 @@ export class BookmarksService {
         .limit(1)
 
       if (!post) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Post not found',
         })
@@ -72,7 +72,7 @@ export class BookmarksService {
   }
 
   async findMe(userId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
-    const bookmarks = await this.db
+    const bookmarks = await this.db.connection
       .select({
         bookmark: BookmarkSchema,
         post: PostSchema,
@@ -102,7 +102,7 @@ export class BookmarksService {
         : null,
     }))
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({
         total: count(),
       })
@@ -117,7 +117,7 @@ export class BookmarksService {
   }
 
   async isBookmarked(userId: string, postId: string) {
-    const [bookmark] = await this.db
+    const [bookmark] = await this.db.connection
       .select({
         id: BookmarkSchema.id,
       })
@@ -132,7 +132,7 @@ export class BookmarksService {
   }
 
   async countByPostId(postId: string) {
-    const [post] = await this.db
+    const [post] = await this.db.connection
       .select({
         id: PostSchema.id,
         bookmarksCount: PostSchema.bookmarksCount,
@@ -142,7 +142,7 @@ export class BookmarksService {
       .limit(1)
 
     if (!post) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Post not found',
       })
@@ -155,7 +155,7 @@ export class BookmarksService {
   }
 
   async countMe(userId: string) {
-    const [{ bookmarksCount = 0 } = {}] = await this.db
+    const [{ bookmarksCount = 0 } = {}] = await this.db.connection
       .select({
         bookmarksCount: count(),
       })
