@@ -1,4 +1,4 @@
-import type { database } from '../../config/db/drizzle'
+import type { Database, database } from '../../config/db/drizzle'
 import {
   SupportConversationSchema,
   type SupportConversation,
@@ -11,11 +11,7 @@ import { and, asc, eq, getTableColumns } from 'drizzle-orm'
 import { SupportConversationStatus } from '../support-conversations/schemas/enums/status'
 import cloudinary from '../../config/cloudinary/cloudinary'
 import type { FormDataEntryValue } from 'bun'
-import {
-  SpongBadRequestException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-} from 'riser-bob'
+import { BadRequestException, InternalServerErrorException, NotFoundException } from 'lykosjs'
 
 export type SupportAttachment = {
   url: string
@@ -24,13 +20,13 @@ export type SupportAttachment = {
 }
 
 export class SupportMessagesService {
-  constructor(private readonly db: typeof database) {}
+  constructor(private readonly db: Database) {}
 
   private authorizeConversation(conversation: SupportConversation, currentUser: User) {
     const isStaff = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPPORT
 
     if (!isStaff && conversation.userId !== currentUser.id) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Support conversation not found',
       })
@@ -45,14 +41,14 @@ export class SupportMessagesService {
       getAll(name: string): FormDataEntryValue[]
     },
   ) {
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select()
       .from(SupportConversationSchema)
       .where(eq(SupportConversationSchema.id, conversationId))
       .limit(1)
 
     if (!conversation) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Support conversation not found',
       })
@@ -61,7 +57,7 @@ export class SupportMessagesService {
     this.authorizeConversation(conversation, currentUser)
 
     if (conversation.status !== SupportConversationStatus.OPEN) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Support conversation is closed',
       })
@@ -71,14 +67,14 @@ export class SupportMessagesService {
     const files = formData.getAll('files') as File[]
 
     if (files.length > 5) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Maximum 5 attachments are allowed',
       })
     }
 
     if (!message?.trim() && files.length === 0) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Message cannot be empty',
       })
@@ -100,7 +96,7 @@ export class SupportMessagesService {
       })
     }
 
-    const [supportMessage] = await this.db
+    const [supportMessage] = await this.db.connection
       .insert(SupportMessageSchema)
       .values({
         conversationId,
@@ -114,13 +110,13 @@ export class SupportMessagesService {
       .returning()
 
     if (!supportMessage) {
-      throw new SpongInternalServerErrorException({
+      throw new InternalServerErrorException({
         success: false,
         message: 'Failed to create support message',
       })
     }
 
-    await this.db
+    await this.db.connection
       .update(SupportConversationSchema)
       .set({
         lastMessage: message?.trim() || 'Attachment',
@@ -129,7 +125,7 @@ export class SupportMessagesService {
       })
       .where(eq(SupportConversationSchema.id, conversationId))
 
-    const [fullMessage] = await this.db
+    const [fullMessage] = await this.db.connection
       .select({
         ...getTableColumns(SupportMessageSchema),
 
@@ -148,7 +144,7 @@ export class SupportMessagesService {
       .limit(1)
 
     if (!fullMessage) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Support message not found',
       })
@@ -185,14 +181,14 @@ export class SupportMessagesService {
   }
 
   async findAll(currentUser: User, conversationId: string) {
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select()
       .from(SupportConversationSchema)
       .where(eq(SupportConversationSchema.id, conversationId))
       .limit(1)
 
     if (!conversation) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Support conversation not found',
       })
@@ -200,7 +196,7 @@ export class SupportMessagesService {
 
     this.authorizeConversation(conversation, currentUser)
 
-    const supportMessages = await this.db
+    const supportMessages = await this.db.connection
       .select({
         ...getTableColumns(SupportMessageSchema),
         senderId: UserSchema.id,
@@ -249,14 +245,14 @@ export class SupportMessagesService {
   }
 
   async markAllAsRead(currentUser: User, conversationId: string) {
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select()
       .from(SupportConversationSchema)
       .where(eq(SupportConversationSchema.id, conversationId))
       .limit(1)
 
     if (!conversation) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Support conversation not found',
       })
@@ -264,7 +260,7 @@ export class SupportMessagesService {
 
     this.authorizeConversation(conversation, currentUser)
 
-    const updatedMessages = await this.db
+    const updatedMessages = await this.db.connection
       .update(SupportMessageSchema)
       .set({
         isRead: true,
@@ -286,7 +282,7 @@ export class SupportMessagesService {
   }
 
   async delete(conversationId: string, messageId: string) {
-    const [supportMessage] = await this.db
+    const [supportMessage] = await this.db.connection
       .select()
       .from(SupportMessageSchema)
       .where(
@@ -298,7 +294,7 @@ export class SupportMessagesService {
       .limit(1)
 
     if (!supportMessage) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Support message not found',
       })
@@ -311,7 +307,9 @@ export class SupportMessagesService {
         await cloudinary.files.destroyFile(attachment.url)
       }
     }
-    await this.db.delete(SupportMessageSchema).where(eq(SupportMessageSchema.id, messageId))
+    await this.db.connection
+      .delete(SupportMessageSchema)
+      .where(eq(SupportMessageSchema.id, messageId))
 
     return {
       success: true,
