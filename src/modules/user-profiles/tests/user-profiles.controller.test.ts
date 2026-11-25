@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
-import { Validator } from 'riser-bob'
-import type { SpongHandler } from 'riser-bob'
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
-import { UserProfileSchema, type UserProfile } from '../schemas/user-profile.schema'
+import { Validator } from 'lykosjs'
+import type { ContextHandler } from 'lykosjs'
+import type { UserProfile } from '../schemas/user-profile.schema'
 import { UpdateUserProfileRule } from '../rules/update'
+import type { Database } from '../../../config/db/drizzle'
 
 // NOTE: this file must live next to the controller (it uses the same '../../' relative imports).
 // If your controller file has a different name, adjust the dynamic import below.
@@ -92,10 +92,10 @@ function createFakeDb() {
 
 type FakeDb = ReturnType<typeof createFakeDb>
 
-type SpongReq = Parameters<SpongHandler>[0]
-type SpongRes = Parameters<SpongHandler>[1]
+type Context = Parameters<ContextHandler>[0]
+type Reply = Parameters<ContextHandler>[1]
 
-type ResponseMethod = 'SpongOK' | 'SpongNotFound' | 'SpongUnprocessableContent'
+type ResponseMethod = 'OK' | 'NotFound' | 'UnprocessableContent'
 
 interface FakeResponse {
   readonly method: ResponseMethod
@@ -106,15 +106,15 @@ function createRes() {
   const build = (method: ResponseMethod) =>
     mock((body: unknown): FakeResponse => ({ method, body }))
 
-  const SpongOK = build('SpongOK')
-  const SpongNotFound = build('SpongNotFound')
-  const SpongUnprocessableContent = build('SpongUnprocessableContent')
+  const OK = build('OK')
+  const NotFound = build('NotFound')
+  const UnprocessableContent = build('UnprocessableContent')
 
   return {
-    res: { SpongOK, SpongNotFound, SpongUnprocessableContent } as unknown as SpongRes,
-    SpongOK,
-    SpongNotFound,
-    SpongUnprocessableContent,
+    res: { OK, NotFound, UnprocessableContent } as unknown as Reply,
+    OK,
+    NotFound,
+    UnprocessableContent,
   }
 }
 
@@ -131,12 +131,16 @@ function createReq(options: ReqOptions = {}) {
     return options.form ?? new FormData()
   })
   const user = options.user === null ? undefined : (options.user ?? { id: USER_ID })
-  return { req: { user, formData } as unknown as SpongReq, formData }
+  return { req: { user, formData } as unknown as Context, formData }
 }
 
 type ValidationResult = ReturnType<typeof Validator.validate>
 
-const validResult = { valid: true, errors: {} } as unknown as ValidationResult
+const validResult = {
+  valid: true,
+  data: {},
+  errors: {},
+} as unknown as ValidationResult
 const makeInvalid = (errors: Record<string, string[]>): ValidationResult =>
   ({ valid: false, errors }) as unknown as ValidationResult
 
@@ -209,10 +213,7 @@ beforeEach(() => {
 
   validateSpy = installValidatorSpy()
   db = createFakeDb()
-  controller = new UserProfilesController(
-    db as unknown as PgDatabase<PgQueryResultHKT>,
-    UserProfileSchema,
-  )
+  controller = new UserProfilesController({ connection: db } as unknown as Database)
 })
 
 afterEach(() => {
@@ -258,18 +259,18 @@ describe('UserProfilesController.update — lookup', () => {
       form: makeForm({ bio: 'hello', avatar: image() }),
     })
 
-    const { res, SpongOK, SpongNotFound } = createRes()
+    const { res, OK, NotFound } = createRes()
 
     await controller.update(req, res)
 
-    expect(SpongNotFound).toHaveBeenCalledTimes(1)
+    expect(NotFound).toHaveBeenCalledTimes(1)
 
-    expect(SpongNotFound.mock.calls[0]?.[0]).toEqual({
+    expect(NotFound.mock.calls[0]?.[0]).toEqual({
       success: false,
       message: 'Profile not found',
     })
 
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
     expect(validateSpy).not.toHaveBeenCalled()
     expectNothingWritten()
   })
@@ -286,12 +287,12 @@ describe('UserProfilesController.update — lookup', () => {
 
   test('never touches the database when there is no authenticated user', async () => {
     const { req } = createReq({ user: null })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.update(req, res)).rejects.toBeInstanceOf(TypeError)
 
     expect(db.select).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
     expectNothingWritten()
   })
 
@@ -377,19 +378,19 @@ describe('UserProfilesController.update — bio and website', () => {
       form: makeForm({ bio: 'x'.repeat(10_000), avatar: image() }),
     })
 
-    const { res, SpongOK, SpongUnprocessableContent } = createRes()
+    const { res, OK, UnprocessableContent } = createRes()
 
     await controller.update(req, res)
 
-    expect(SpongUnprocessableContent).toHaveBeenCalledTimes(1)
+    expect(UnprocessableContent).toHaveBeenCalledTimes(1)
 
-    expect(SpongUnprocessableContent.mock.calls[0]?.[0]).toEqual({
+    expect(UnprocessableContent.mock.calls[0]?.[0]).toEqual({
       success: false,
       message: 'Validation failed',
       errors: { bio: ['Bio is too long'] },
     })
 
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
     expectNothingWritten()
   })
 
@@ -432,7 +433,7 @@ describe('UserProfilesController.update — bio and website', () => {
 
     expect(validateSpy).not.toHaveBeenCalled()
     expect(setKeys(updateChain)).toEqual(['updatedAt'])
-    expect(response).toMatchObject({ method: 'SpongOK' })
+    expect(response).toMatchObject({ method: 'OK' })
   })
 })
 
@@ -444,13 +445,13 @@ describe('UserProfilesController.update — socials', () => {
   async function runSocials(raw: string, profile: UserProfile = makeProfile()) {
     const { updateChain } = queueProfile(profile)
     const { req } = createReq({ form: makeForm({ socials: raw }) })
-    const { res, SpongUnprocessableContent } = createRes()
+    const { res, UnprocessableContent } = createRes()
 
     const result = await controller.update(req, res)
 
     return {
       result, // the actual value returned by the controller
-      response: SpongUnprocessableContent, // the mock (for inspecting calls)
+      response: UnprocessableContent, // the mock (for inspecting calls)
       updateChain,
     }
   }
@@ -574,7 +575,7 @@ describe('UserProfilesController.update — socials', () => {
       '{"__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}}}',
     )
 
-    expect(result).toMatchObject({ method: 'SpongUnprocessableContent' })
+    expect(result).toMatchObject({ method: 'UnprocessableContent' })
     expect(updateChain.set).not.toHaveBeenCalled()
     expect(({} as Record<string, unknown>).polluted).toBeUndefined()
   })
@@ -614,7 +615,7 @@ describe('UserProfilesController.update — socials', () => {
       const { result, updateChain } = await runSocials(JSON.stringify({ twitterUrl: value }))
 
       expect(result).toMatchObject({
-        method: 'SpongUnprocessableContent',
+        method: 'UnprocessableContent',
         body: { errors: { twitterUrl: URL_ERROR } },
       })
       expect(updateChain.set).not.toHaveBeenCalled()
@@ -656,13 +657,13 @@ describe('UserProfilesController.update — socials', () => {
       }),
     })
 
-    const { res, SpongUnprocessableContent } = createRes()
+    const { res, UnprocessableContent } = createRes()
 
     await controller.update(req, res)
 
-    expect(SpongUnprocessableContent).toHaveBeenCalledTimes(1)
+    expect(UnprocessableContent).toHaveBeenCalledTimes(1)
 
-    expect(SpongUnprocessableContent.mock.calls[0]?.[0]).toEqual({
+    expect(UnprocessableContent.mock.calls[0]?.[0]).toEqual({
       success: false,
       message: 'Validation failed',
       errors: {
@@ -786,27 +787,27 @@ describe('UserProfilesController.update — images', () => {
     db.select.mockReturnValueOnce(rows([makeProfile()]))
     db.update.mockReturnValueOnce(failing(new Error('db down')))
     const { req } = createReq({ form: makeForm({ avatar: image(), cover: image() }) })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.update(req, res)).rejects.toThrow('db down')
 
     expect(destroyImage).not.toHaveBeenCalled()
     expect(destroyImagesMany).toHaveBeenCalledTimes(1)
     expect(destroyImagesMany).toHaveBeenCalledWith([NEW_AVATAR.publicId, NEW_COVER.publicId])
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('removes the new uploads and fails when the update returns no row', async () => {
     db.select.mockReturnValueOnce(rows([makeProfile()]))
     db.update.mockReturnValueOnce(rows([]))
     const { req } = createReq({ form: makeForm({ avatar: image() }) })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.update(req, res)).rejects.toThrow('Failed to update profile')
 
     expect(destroyImagesMany).toHaveBeenCalledWith([NEW_AVATAR.publicId])
     expect(destroyImage).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('cleans up the avatar and skips the save when the cover upload fails', async () => {
@@ -842,7 +843,7 @@ describe('UserProfilesController.update — images', () => {
 
       const response = await controller.update(req, res)
 
-      expect(response).toMatchObject({ method: 'SpongOK' })
+      expect(response).toMatchObject({ method: 'OK' })
       expect(destroyImage).toHaveBeenCalledWith('old-avatar-id')
     })
 
@@ -876,32 +877,32 @@ describe('UserProfilesController.update — images', () => {
       queueProfile(makeProfile())
       const exe = image('malware.exe', 'application/x-msdownload', 'MZ')
       const { req } = createReq({ form: makeForm({ avatar: exe }) })
-      const { res, SpongOK } = createRes()
+      const { res, OK } = createRes()
 
       const response = await controller.update(req, res)
 
       expect(response).toMatchObject({
-        method: 'SpongUnprocessableContent',
+        method: 'UnprocessableContent',
         body: { errors: { avatar: ['Only JPEG, PNG, and WebP images are allowed'] } },
       })
       expect(uploadImage).not.toHaveBeenCalled()
-      expect(SpongOK).not.toHaveBeenCalled()
+      expect(OK).not.toHaveBeenCalled()
     })
 
     test('rejects oversized images', async () => {
       queueProfile(makeProfile())
       const huge = new File([new Uint8Array(25 * 1024 * 1024)], 'huge.png', { type: 'image/png' })
       const { req } = createReq({ form: makeForm({ cover: huge }) })
-      const { res, SpongOK } = createRes()
+      const { res, OK } = createRes()
 
       const response = await controller.update(req, res)
 
       expect(response).toMatchObject({
-        method: 'SpongUnprocessableContent',
+        method: 'UnprocessableContent',
         body: { errors: { cover: ['Image size must not exceed 5 MB'] } },
       })
       expect(uploadImage).not.toHaveBeenCalled()
-      expect(SpongOK).not.toHaveBeenCalled()
+      expect(OK).not.toHaveBeenCalled()
     })
   })
 })
@@ -928,14 +929,14 @@ describe('UserProfilesController.update — response', () => {
       form: makeForm({ bio: 'sent bio' }),
     })
 
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await controller.update(req, res)
 
     // Exact match: id, userId, createdAt, updatedAt must not leak.
-    expect(SpongOK).toHaveBeenCalledTimes(1)
+    expect(OK).toHaveBeenCalledTimes(1)
 
-    expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+    expect(OK.mock.calls[0]?.[0]).toEqual({
       success: true,
       message: 'Profile updated successfully',
       data: {
