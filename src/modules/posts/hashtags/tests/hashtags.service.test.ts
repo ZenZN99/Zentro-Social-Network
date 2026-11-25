@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import { SpongBadRequestException, SpongInternalServerErrorException } from 'riser-bob'
-import type { database } from '../../../../config/db/drizzle'
+import { BadRequestException, InternalServerErrorException } from 'lykosjs'
+import type { Database, database } from '../../../../config/db/drizzle'
 import { HashtagsService } from '../hashtags.service'
 import { buildPagination } from '../../../../utilities/pagination'
 
-/* -------------------------------------------------------------------------- */
-/* Typed test doubles (no `any`)                                              */
-/* -------------------------------------------------------------------------- */
+// Typed test doubles (no `any`)
 
 type Outcome = { readonly value: unknown } | { readonly error: Error }
 
@@ -109,7 +107,7 @@ beforeEach(() => {
   db = createFakeDb()
   transaction = createFakeDb()
 
-  service = new HashtagsService(db as unknown as typeof database)
+  service = new HashtagsService({ connection: db } as unknown as Database)
 })
 
 const asTransaction = (fake: FakeDb): Transaction => fake as unknown as Transaction
@@ -166,21 +164,21 @@ describe('HashtagsService.findOrCreate', () => {
   test('rejects an empty hashtag name', async () => {
     const error = await captureRejection(service.findOrCreate(''))
 
-    expect(error).toBeInstanceOf(SpongBadRequestException)
+    expect(error).toBeInstanceOf(BadRequestException)
     expect(db.insert).not.toHaveBeenCalled()
   })
 
   test('rejects a whitespace-only hashtag name', async () => {
     const error = await captureRejection(service.findOrCreate('   '))
 
-    expect(error).toBeInstanceOf(SpongBadRequestException)
+    expect(error).toBeInstanceOf(BadRequestException)
     expect(db.insert).not.toHaveBeenCalled()
   })
 
   test('rejects a hashtag name longer than 100 characters after normalization', async () => {
     const error = await captureRejection(service.findOrCreate(`#${'a'.repeat(101)}`))
 
-    expect(error).toBeInstanceOf(SpongBadRequestException)
+    expect(error).toBeInstanceOf(BadRequestException)
     expect(db.insert).not.toHaveBeenCalled()
   })
 
@@ -341,7 +339,7 @@ describe('HashtagsService.findOrCreateMany', () => {
 
     const error = await captureRejection(service.findOrCreateMany(['typescript']))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
   })
 
   test('includes the failed hashtag name in the error message', async () => {
@@ -350,7 +348,7 @@ describe('HashtagsService.findOrCreateMany', () => {
 
     const error = await captureRejection(service.findOrCreateMany(['typescript']))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
 
     if (error instanceof Error) {
       expect(error.message).toContain('typescript')
