@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import {
-  SpongBadRequestException,
-  SpongForbiddenException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-} from 'riser-bob'
-import type { database } from '../../../config/db/drizzle'
+  BadRequestException,
+  ForbiddenException,
+  InternalServerErrorException,
+  NotFoundException,
+} from 'lykosjs'
+import type { Database, database } from '../../../config/db/drizzle'
 import type { MessagesService as MessagesServiceType } from '../messages.service'
 import type { MessagesGateway } from '../../../config/gateways/messages.gateway'
 import type { NotificationsService } from '../../notifications/notifications.service'
@@ -280,7 +280,7 @@ beforeEach(() => {
   dependencies = makeDependencies()
 
   service = new MessagesService(
-    db as unknown as typeof database,
+    { connection: db } as unknown as Database,
     dependencies.messageGateway as unknown as MessagesGateway,
     dependencies.notificationsService as unknown as NotificationsService,
   )
@@ -411,7 +411,7 @@ describe('MessagesService.create', () => {
       service.create(USER_ID, OTHER_USER_ID, makeFormData('   ')),
     )
 
-    expect(result).toBeInstanceOf(SpongBadRequestException)
+    expect(result).toBeInstanceOf(BadRequestException)
     expect(db.select).not.toHaveBeenCalled()
     expect(db.transaction).not.toHaveBeenCalled()
   })
@@ -423,7 +423,7 @@ describe('MessagesService.create', () => {
       service.create(USER_ID, OTHER_USER_ID, makeFormData(null, files)),
     )
 
-    expect(result).toBeInstanceOf(SpongBadRequestException)
+    expect(result).toBeInstanceOf(BadRequestException)
     expect(uploadImage).not.toHaveBeenCalled()
     expect(db.select).not.toHaveBeenCalled()
   })
@@ -452,7 +452,7 @@ describe('MessagesService.create', () => {
   test('rejects sending a message to yourself', async () => {
     const result = await captureRejection(service.create(USER_ID, USER_ID, makeFormData('Hello')))
 
-    expect(result).toBeInstanceOf(SpongBadRequestException)
+    expect(result).toBeInstanceOf(BadRequestException)
     expect(db.select).not.toHaveBeenCalled()
   })
 
@@ -463,7 +463,7 @@ describe('MessagesService.create', () => {
       service.create(USER_ID, OTHER_USER_ID, makeFormData('Hello')),
     )
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(db.transaction).not.toHaveBeenCalled()
     expect(dependencies.messageGateway.sendMessage).not.toHaveBeenCalled()
   })
@@ -488,7 +488,7 @@ describe('MessagesService.create', () => {
 
     const result = await captureRejection(service.create(USER_ID, OTHER_USER_ID, formData))
 
-    expect(result).toBeInstanceOf(SpongBadRequestException)
+    expect(result).toBeInstanceOf(BadRequestException)
     expect(uploadImage).not.toHaveBeenCalled()
     expect(uploadFile).not.toHaveBeenCalled()
   })
@@ -733,7 +733,7 @@ describe('MessagesService.create', () => {
       service.create(USER_ID, OTHER_USER_ID, makeFormData('Hello')),
     )
 
-    expect(result).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(result).toBeInstanceOf(InternalServerErrorException)
   })
 
   test('throws when the final joined message query returns no row', async () => {
@@ -747,7 +747,7 @@ describe('MessagesService.create', () => {
       service.create(USER_ID, OTHER_USER_ID, makeFormData('Hello')),
     )
 
-    expect(result).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(result).toBeInstanceOf(InternalServerErrorException)
   })
 
   test('REGRESSION: notification failure currently rejects after the message transaction', async () => {
@@ -882,7 +882,7 @@ describe('MessagesService.findAll', () => {
 
     const result = await captureRejection(service.findAll(USER_ID, CONVERSATION_ID))
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(db.select).toHaveBeenCalledTimes(1)
   })
 
@@ -893,7 +893,7 @@ describe('MessagesService.findAll', () => {
 
     const result = await captureRejection(service.findAll(THIRD_USER_ID, CONVERSATION_ID))
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(whereParams(conversationChain)).toContain(THIRD_USER_ID)
     expect(db.select).toHaveBeenCalledTimes(1)
   })
@@ -997,7 +997,7 @@ describe('MessagesService.markAllAsRead', () => {
 
     const result = await captureRejection(service.markAllAsRead(USER_ID, CONVERSATION_ID))
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(db.update).not.toHaveBeenCalled()
   })
 
@@ -1008,7 +1008,7 @@ describe('MessagesService.markAllAsRead', () => {
 
     const result = await captureRejection(service.markAllAsRead(THIRD_USER_ID, CONVERSATION_ID))
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(whereParams(conversationChain)).toContain(THIRD_USER_ID)
     expect(db.update).not.toHaveBeenCalled()
   })
@@ -1072,7 +1072,7 @@ describe('MessagesService.findUnreadCount', () => {
 
     const result = await captureRejection(service.findUnreadCount(USER_ID, CONVERSATION_ID))
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(db.select).toHaveBeenCalledTimes(1)
   })
 
@@ -1083,7 +1083,7 @@ describe('MessagesService.findUnreadCount', () => {
 
     const result = await captureRejection(service.findUnreadCount(THIRD_USER_ID, CONVERSATION_ID))
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(whereParams(conversationChain)).toContain(THIRD_USER_ID)
     expect(db.select).toHaveBeenCalledTimes(1)
   })
@@ -1165,7 +1165,7 @@ describe('MessagesService.delete', () => {
 
     const result = await captureRejection(service.delete(USER_ID, MESSAGE_ID))
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(db.delete).not.toHaveBeenCalled()
     expect(dependencies.messageGateway.sendMessageDeleted).not.toHaveBeenCalled()
   })
@@ -1181,7 +1181,7 @@ describe('MessagesService.delete', () => {
 
     const result = await captureRejection(service.delete(USER_ID, MESSAGE_ID))
 
-    expect(result).toBeInstanceOf(SpongForbiddenException)
+    expect(result).toBeInstanceOf(ForbiddenException)
     expect(db.select).toHaveBeenCalledTimes(1)
     expect(db.delete).not.toHaveBeenCalled()
     expect(dependencies.messageGateway.sendMessageDeleted).not.toHaveBeenCalled()
@@ -1204,7 +1204,7 @@ describe('MessagesService.delete', () => {
 
     const result = await captureRejection(service.delete(USER_ID, MESSAGE_ID))
 
-    expect(result).toBeInstanceOf(SpongNotFoundException)
+    expect(result).toBeInstanceOf(NotFoundException)
     expect(db.delete).not.toHaveBeenCalled()
     expect(dependencies.messageGateway.sendMessageDeleted).not.toHaveBeenCalled()
   })
@@ -1235,7 +1235,7 @@ describe('MessagesService.delete', () => {
 
     const result = await captureRejection(service.delete(OTHER_USER_ID, MESSAGE_ID))
 
-    expect(result).toBeInstanceOf(SpongForbiddenException)
+    expect(result).toBeInstanceOf(ForbiddenException)
     expect(db.select).toHaveBeenCalledTimes(1)
     expect(db.delete).not.toHaveBeenCalled()
     expect(dependencies.messageGateway.sendMessageDeleted).not.toHaveBeenCalled()
