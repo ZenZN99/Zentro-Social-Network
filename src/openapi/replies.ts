@@ -1,7 +1,7 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import { Validator } from 'lykosjs'
 import { CreateReplyRule } from '../modules/replies/rules/create'
 import { UpdateReplyRule } from '../modules/replies/rules/update'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
 
 export const repliesAPI = {
   create: {
@@ -16,7 +16,7 @@ export const repliesAPI = {
 
     request: {
       params: {
-        commentId: rules(['required', 'string']),
+        commentId: Validator.text().required(),
       },
       body: CreateReplyRule,
     },
@@ -43,11 +43,11 @@ export const repliesAPI = {
     tags: ['Replies'],
     request: {
       params: {
-        commentId: rules(['required', 'string']),
+        commentId: Validator.text().required(),
       },
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -70,8 +70,8 @@ export const repliesAPI = {
     security: ['CookieAuth'],
     request: {
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -90,7 +90,7 @@ export const repliesAPI = {
     tags: ['Replies'],
     request: {
       params: {
-        replyId: rules(['required', 'string']),
+        replyId: Validator.text().required(),
       },
     },
     response: {
@@ -113,7 +113,7 @@ export const repliesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        replyId: rules(['required', 'string']),
+        replyId: Validator.text().required(),
       },
       body: UpdateReplyRule,
     },
@@ -140,7 +140,7 @@ export const repliesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        replyId: rules(['required', 'string']),
+        replyId: Validator.text().required(),
       },
     },
     response: {
