@@ -3,7 +3,7 @@ import type { NodePgTransaction } from 'drizzle-orm/node-postgres'
 import type { ExtractTablesWithRelations } from 'drizzle-orm'
 import { PostMentionSchema } from './schemas/post-mention.schema'
 import { UserSchema } from '../../users/schemas/user.schema'
-import type { database } from '../../../config/db/drizzle'
+import type { Database } from '../../../config/db/drizzle'
 
 type Transaction = NodePgTransaction<
   Record<string, never>,
@@ -11,7 +11,7 @@ type Transaction = NodePgTransaction<
 >
 
 export class PostMentionsService {
-  constructor(private readonly db: typeof database) {}
+  constructor(private readonly db: Database) {}
 
   async attachMany(
     postId: string,
@@ -24,7 +24,7 @@ export class PostMentionsService {
 
     const attachedIds: string[] = []
 
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     for (const mentionedUserId of uniqueIds) {
       const [existing] = await db
@@ -56,7 +56,7 @@ export class PostMentionsService {
   async detachMany(postId: string, userIds: string[], transaction?: Transaction): Promise<number> {
     if (!userIds.length) return 0
 
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const deleted = await db
       .delete(PostMentionSchema)
@@ -72,7 +72,7 @@ export class PostMentionsService {
   }
 
   async detachAll(postId: string, transaction?: Transaction): Promise<number> {
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const deleted = await db
       .delete(PostMentionSchema)
@@ -87,7 +87,7 @@ export class PostMentionsService {
 
     if (uniqueIds.length === 0) return []
 
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const users = await db
       .select({ id: UserSchema.id })
