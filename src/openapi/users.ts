@@ -1,6 +1,6 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
+import { Validator } from 'lykosjs'
 import { UserRole } from '../modules/users/schemas/enums/user-role'
-import { rules } from 'riser-bob'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
 
 export const usersAPI = {
   findAll: {
@@ -46,10 +46,10 @@ export const usersAPI = {
     request: {
       contentType: 'application/json',
       params: {
-        userId: rules(['required', 'string']),
+        userId: Validator.text().required(),
       },
       body: {
-        role: rules(['required', `enum:${UserRole.USER},${UserRole.SUPPORT}`]),
+        role: Validator.enum(UserRole).required(),
       },
     },
     response: {
@@ -75,7 +75,7 @@ export const usersAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        userId: rules(['required', 'string']),
+        userId: Validator.text().required(),
       },
     },
     response: {
