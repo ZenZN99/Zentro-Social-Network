@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import type { database } from '../../../../config/db/drizzle'
+import type { Database, database } from '../../../../config/db/drizzle'
 import { buildPagination } from '../../../../utilities/pagination'
 import { NotificationType } from '../../../notifications/schemas/enums/notification-type'
 import type { NotificationsService } from '../../../notifications/notifications.service'
@@ -219,7 +219,7 @@ beforeEach(() => {
   }
 
   service = new PostRepostsService(
-    db as unknown as typeof database,
+    { connection: db } as unknown as Database,
     notificationsService as unknown as NotificationsService,
   )
 })
