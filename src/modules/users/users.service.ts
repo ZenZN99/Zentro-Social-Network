@@ -1,4 +1,4 @@
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { desc, inArray, count, eq } from 'drizzle-orm'
 import { buildPagination } from '../../utilities/pagination'
 import { sanitizeUser } from '../../utilities/sanitize-user'
@@ -8,11 +8,11 @@ import { UserRole } from './schemas/enums/user-role'
 import { UserSchema } from './schemas/user.schema'
 import type { NotificationsService } from '../notifications/notifications.service'
 import { NotificationType } from '../notifications/schemas/enums/notification-type'
-import { SpongBadRequestException, SpongNotFoundException } from 'riser-bob'
+import { BadRequestException, NotFoundException } from 'lykosjs'
 
 export class UsersService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -25,14 +25,14 @@ export class UsersService {
         : (safePage - 1) * safeLimit
 
     const [users, countResult] = await Promise.all([
-      this.db
+      this.db.connection
         .select()
         .from(UserSchema)
         .orderBy(desc(UserSchema.createdAt))
         .limit(limit)
         .offset(safeOffset),
 
-      this.db.select({ total: count() }).from(UserSchema),
+      this.db.connection.select({ total: count() }).from(UserSchema),
     ])
 
     const total = countResult[0]?.total ?? 0
@@ -41,7 +41,7 @@ export class UsersService {
 
     const [profiles, verifications] = userIds.length
       ? await Promise.all([
-          this.db
+          this.db.connection
             .select({
               id: UserProfileSchema.id,
               userId: UserProfileSchema.userId,
@@ -52,7 +52,7 @@ export class UsersService {
             .from(UserProfileSchema)
             .where(inArray(UserProfileSchema.userId, userIds)),
 
-          this.db
+          this.db.connection
             .select({
               id: UserVerificationSchema.id,
               userId: UserVerificationSchema.userId,
@@ -88,21 +88,21 @@ export class UsersService {
   }
 
   async findOneByUsername(username: string) {
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select()
       .from(UserSchema)
       .where(eq(UserSchema.username, username))
       .limit(1)
 
     if (!user || !user.isActive) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'User not found',
       })
     }
 
     const [profile, verification] = await Promise.all([
-      this.db
+      this.db.connection
         .select({
           id: UserProfileSchema.id,
           avatar: UserProfileSchema.avatar,
@@ -113,7 +113,7 @@ export class UsersService {
         .where(eq(UserProfileSchema.userId, user.id))
         .limit(1),
 
-      this.db
+      this.db.connection
         .select({
           status: UserVerificationSchema.status,
         })
@@ -138,19 +138,19 @@ export class UsersService {
     const allowedRoles = [UserRole.USER, UserRole.SUPPORT]
 
     if (!allowedRoles.includes(role)) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Invalid user role',
       })
     }
 
-    const [user] = await this.db.select().from(UserSchema).where(eq(UserSchema.id, userId)).limit(1)
+    const [user] = await this.db.connection.select().from(UserSchema).where(eq(UserSchema.id, userId)).limit(1)
 
     if (!user || !user.isActive) {
-      throw new SpongNotFoundException({ success: false, message: 'User not found' })
+      throw new NotFoundException({ success: false, message: 'User not found' })
     }
 
-    await this.db
+    await this.db.connection
       .update(UserSchema)
       .set({
         role,
@@ -173,13 +173,13 @@ export class UsersService {
   }
 
   async block(adminId: string, userId: string) {
-    const [user] = await this.db.select().from(UserSchema).where(eq(UserSchema.id, userId)).limit(1)
+    const [user] = await this.db.connection.select().from(UserSchema).where(eq(UserSchema.id, userId)).limit(1)
 
     if (!user || !user.isActive) {
-      throw new SpongNotFoundException({ success: false, message: 'User not found' })
+      throw new NotFoundException({ success: false, message: 'User not found' })
     }
 
-    await this.db
+    await this.db.connection
       .update(UserSchema)
       .set({
         isActive: false,
