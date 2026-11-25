@@ -1,38 +1,39 @@
-import type { SpongHandler } from 'riser-bob'
+import type { ContextHandler } from 'lykosjs'
 import type { MessagesService } from './messages.service'
+import { verifyUser } from '../../config/token/verify-user'
 
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
-  readonly create: SpongHandler = async (spongReq, spongRes) => {
-    const senderId = spongReq.user!.id
+  readonly create: ContextHandler = async (ctx, reply) => {
+    const senderId = ctx.user!.id
 
-    const { receiverId } = spongReq.params
+    const { receiverId } = ctx.params
 
     if (!receiverId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Receiver ID is required',
       })
     }
 
-    const formData = await spongReq.formData()
+    const formData = await ctx.formData()
 
     const result = await this.messagesService.create(senderId, receiverId, formData)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result.success,
       message: result.message,
       data: result.data,
     })
   }
 
-  readonly findAll: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly findAll: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { conversationId } = spongReq.params
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Conversation ID is required',
       })
@@ -40,19 +41,19 @@ export class MessagesController {
 
     const result = await this.messagesService.findAll(userId, conversationId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly markAllAsRead: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly markAllAsRead: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { conversationId } = spongReq.params
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Conversation ID is required',
       })
@@ -60,20 +61,20 @@ export class MessagesController {
 
     const result = await this.messagesService.markAllAsRead(userId, conversationId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
       data: result.data,
     })
   }
 
-  readonly findUnreadCount: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly findUnreadCount: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { conversationId } = spongReq.params
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Conversation ID is required',
       })
@@ -81,19 +82,19 @@ export class MessagesController {
 
     const result = await this.messagesService.findUnreadCount(userId, conversationId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly delete: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly delete: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { messageId } = spongReq.params
+    const { messageId } = ctx.params
 
     if (!messageId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Message ID is required',
       })
@@ -101,9 +102,13 @@ export class MessagesController {
 
     const result = await this.messagesService.delete(userId, messageId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
     })
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
