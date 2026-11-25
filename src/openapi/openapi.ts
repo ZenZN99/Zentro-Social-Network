@@ -1,4 +1,4 @@
-import { OpenAPI } from '@riser-bob/openapi'
+import { OpenAPIManager } from '@lykosjs/openapi'
 import { authAPI } from './auth'
 import { usersAPI } from './users'
 import { userVerficationsAPI } from './user-verifications'
@@ -17,7 +17,7 @@ import { conversationsAPI } from './conversations'
 import { bookmarksAPI } from './bookmarks'
 import { namespaceRoutes } from '../utilities/names-space-routes'
 
-const openapi = new OpenAPI({
+const openapi = new OpenAPIManager({
   info: {
     title: 'Zentro Social Network',
     version: '1.0.0',
