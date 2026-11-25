@@ -1,25 +1,21 @@
-import type { SpongRequest, SpongResponse } from 'riser-bob';
+import type { Context, NextFunc, Reply } from 'lykosjs'
 
 export class UserActiveMiddleware {
-  readonly middleware = async (
-    spongReq: SpongRequest,
-    spongRes: SpongResponse,
-    spongNext: () => Promise<Response>,
-  ): Promise<Response> => {
-    if (!spongReq.user) {
-      return spongRes.SpongUnauthorized({
+  readonly middleware = async (ctx: Context, reply: Reply, next: NextFunc): Promise<Response> => {
+    if (!ctx.user) {
+      return reply.Unauthorized({
         success: false,
         message: 'You are not authenticated',
-      });
+      })
     }
 
-    if (!spongReq.user.isActive) {
-      return spongRes.SpongForbidden({
+    if (!ctx.user.isActive) {
+      return reply.Forbidden({
         success: false,
         message: 'Your account is inactive',
-      });
+      })
     }
 
-    return spongNext();
-  };
+    return next()
+  }
 }
