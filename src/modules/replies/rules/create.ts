@@ -1,6 +1,6 @@
-import { defineSchema, rules } from 'riser-bob'
+import { defineSchema, Validator } from 'lykosjs'
 
 export const CreateReplyRule = defineSchema({
-  content: rules(['required', 'string', 'maxLength:300']),
-  parentReplyId: rules(['nullable', 'string']),
+  content: Validator.string(3, 300).required(),
+  parentReplyId: Validator.text().nullable(),
 })
