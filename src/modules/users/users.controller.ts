@@ -1,17 +1,18 @@
-import type { SpongHandler } from 'riser-bob'
 import { getPagination } from '../../utilities/pagination'
 import type { UsersService } from './users.service'
 import type { UserRole } from './schemas/enums/user-role'
+import type { ContextHandler } from 'lykosjs'
+import { verifyUser } from '../../config/token/verify-user'
 
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  readonly findAll: SpongHandler = async (spongReq, spongRes) => {
-    const { page, limit, offset } = getPagination(spongReq)
+  readonly findAll: ContextHandler = async (ctx, reply) => {
+    const { page, limit, offset } = getPagination(ctx)
 
     const result = await this.usersService.findAll(page, limit, offset)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: {
         users: result.safeUsers,
@@ -20,11 +21,11 @@ export class UsersController {
     })
   }
 
-  readonly findOneByUsername: SpongHandler = async (spongReq, spongRes) => {
-    const { username } = spongReq.params
+  readonly findOneByUsername: ContextHandler = async (ctx, reply) => {
+    const { username } = ctx.params
 
     if (!username) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'User name is required',
       })
@@ -32,39 +33,39 @@ export class UsersController {
 
     const result = await this.usersService.findOneByUsername(username)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly updateRole: SpongHandler = async (spongReq, spongRes) => {
-    const adminId = spongReq.user!.id
-    const { userId } = spongReq.params
+  readonly updateRole: ContextHandler = async (ctx, reply) => {
+    const adminId = ctx.user!.id
+    const { userId } = ctx.params
 
     if (!userId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'User ID is required',
       })
     }
 
-    const { role } = await spongReq.json<{ role: UserRole }>()
+    const { role } = await ctx.json<{ role: UserRole }>()
 
     const result = await this.usersService.updateRole(adminId, userId, role)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
     })
   }
 
-  readonly block: SpongHandler = async (spongReq, spongRes) => {
-    const adminId = spongReq.user!.id
-    const { userId } = spongReq.params
+  readonly block: ContextHandler = async (ctx, reply) => {
+    const adminId = ctx.user!.id
+    const { userId } = ctx.params
 
     if (!userId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'User ID is required',
       })
@@ -72,9 +73,13 @@ export class UsersController {
 
     const result = await this.usersService.block(adminId, userId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
     })
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
