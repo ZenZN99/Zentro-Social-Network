@@ -37,18 +37,23 @@ const getUsers = (userId: string): OnlineUser[] => {
 }
 
 export class MessagesGateway {
-  constructor(private readonly server: Server) {
-    this.server.on('connection', (client: Socket) => {
-      this.handleConnection(client)
+  private static server: Server | null = null
+
+  // Called once from launch.ts (replaces the old constructor logic)
+  static setServer(server: Server): void {
+    MessagesGateway.server = server
+
+    server.on('connection', (client: Socket) => {
+      MessagesGateway.handleConnection(client) //Error: Property 'handleConnection' does not exist on type 'typeof MessagesGateway'.
 
       client.on('disconnect', () => {
-        this.handleDisconnect(client)
+        MessagesGateway.handleDisconnect(client)
       })
     })
   }
 
   // Connection
-  private handleConnection(client: Socket): void {
+  private static handleConnection(client: Socket): void {
     const user = client.data.user
 
     if (!user) {
@@ -63,7 +68,7 @@ export class MessagesGateway {
   }
 
   // Disconnect
-  private handleDisconnect(client: Socket): void {
+  private static handleDisconnect(client: Socket): void {
     removeUser(client.id)
 
     console.log('🔴 Message socket disconnected:', client.id)
@@ -72,6 +77,12 @@ export class MessagesGateway {
 
   // Send message
   sendMessage(data: MessageData): void {
+    const server = MessagesGateway.server
+    if (!server) {
+      console.warn('⚠️ MessageGateway: server not set yet')
+      return
+    }
+
     const receivers = getUsers(data.receiverId)
 
     console.log('📤 Sending message to:', data.receiverId)
@@ -83,18 +94,21 @@ export class MessagesGateway {
     }
 
     receivers.forEach((user) => {
-      this.server.to(user.socketId).emit('receive-message', data.message)
+      server.to(user.socketId).emit('receive-message', data.message)
     })
   }
 
   // Message deleted
   sendMessageDeleted(data: MessageDeletedData): void {
+    const server = MessagesGateway.server
+    if (!server) return
+
     const receivers = getUsers(data.receiverId)
 
     console.log('🗑️ Sending message deletion to:', data.receiverId)
 
     receivers.forEach((user) => {
-      this.server.to(user.socketId).emit('message-deleted', {
+      server.to(user.socketId).emit('message-deleted', {
         messageId: data.messageId,
       })
     })
