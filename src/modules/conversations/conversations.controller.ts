@@ -1,10 +1,11 @@
-import type { SpongHandler } from 'riser-bob'
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { ConversationSchema } from './schemas/conversation.schema'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import { and, desc, eq, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { UserSchema } from '../users/schemas/user.schema'
+import { verifyUser } from '../../config/token/verify-user'
+import type { ContextHandler } from 'lykosjs'
 
 const senderUser = alias(UserSchema, 'sender_user')
 const receiverUser = alias(UserSchema, 'receiver_user')
@@ -13,12 +14,12 @@ const senderProfile = alias(UserProfileSchema, 'sender_profile')
 const receiverProfile = alias(UserProfileSchema, 'receiver_profile')
 
 export class ConversationsController {
-  constructor(private readonly db: typeof database) {}
+  constructor(private readonly db: Database) {}
 
-  readonly findMe: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly findMe: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const result = await this.db
+    const result = await this.db.connection
       .select({
         id: ConversationSchema.id,
         senderId: ConversationSchema.senderId,
@@ -88,25 +89,25 @@ export class ConversationsController {
       }
     })
 
-    return spongRes.json({
+    return reply.OK({
       success: true,
       data,
     })
   }
 
-  readonly findOne: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly findOne: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { conversationId } = spongReq.params
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Conversation ID is required',
       })
     }
 
-    const [result] = await this.db
+    const [result] = await this.db.connection
       .select({
         id: ConversationSchema.id,
         senderId: ConversationSchema.senderId,
@@ -144,7 +145,7 @@ export class ConversationsController {
       .limit(1)
 
     if (!result) {
-      return spongRes.SpongNotFound({
+      return reply.NotFound({
         success: false,
         message: 'Conversation not found',
       })
@@ -186,24 +187,24 @@ export class ConversationsController {
         : null,
     }
 
-    return spongRes.json({
+    return reply.json({
       success: true,
       data,
     })
   }
 
-  readonly mute: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
-    const conversationId = spongReq.params.id
+  readonly mute: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
+    const conversationId = ctx.params.id
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Conversation ID is required',
       })
     }
 
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select()
       .from(ConversationSchema)
       .where(
@@ -215,7 +216,7 @@ export class ConversationsController {
       .limit(1)
 
     if (!conversation) {
-      return spongRes.SpongNotFound({
+      return reply.NotFound({
         success: false,
         message: 'Conversation not found',
       })
@@ -226,23 +227,27 @@ export class ConversationsController {
     if (conversation.senderId === userId) {
       isMuted = !conversation.isMutedBySender
 
-      await this.db
+      await this.db.connection
         .update(ConversationSchema)
         .set({ isMutedBySender: isMuted, updatedAt: new Date() })
         .where(eq(ConversationSchema.id, conversationId))
     } else {
       isMuted = !conversation.isMutedByReceiver
 
-      await this.db
+      await this.db.connection
         .update(ConversationSchema)
         .set({ isMutedByReceiver: isMuted, updatedAt: new Date() })
         .where(eq(ConversationSchema.id, conversationId))
     }
 
-    return spongRes.json({
+    return reply.json({
       success: true,
       message: isMuted ? 'Conversation muted successfully' : 'Conversation unmuted successfully',
       data: { isMuted },
     })
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
