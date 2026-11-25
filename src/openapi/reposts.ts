@@ -1,5 +1,5 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
+import { Validator } from 'lykosjs'
 
 export const repostsAPI = {
   repostPost: {
@@ -12,7 +12,7 @@ export const repostsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        postId: rules(['required', 'string']),
+        postId: Validator.text().required(),
       },
     },
     response: {
@@ -40,11 +40,11 @@ export const repostsAPI = {
     tags: ['Reposts'],
     request: {
       params: {
-        userId: rules(['required', 'string']),
+        userId: Validator.text().required(),
       },
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -64,8 +64,8 @@ export const repostsAPI = {
     security: ['CookieAuth'],
     request: {
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
