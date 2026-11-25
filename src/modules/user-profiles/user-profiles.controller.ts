@@ -1,14 +1,13 @@
-
-import { Validator } from 'riser-bob'
-import type { SpongHandler } from 'riser-bob'
 import { eq } from 'drizzle-orm'
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
-import type {
-  UserProfile,
+import {
   UserProfileSchema,
+  type UserProfile,
 } from '../../modules/user-profiles/schemas/user-profile.schema'
 import { UpdateUserProfileRule } from '../../modules/user-profiles/rules/update'
 import cloudinary from '../../config/cloudinary/cloudinary'
+import { Validator, type ContextHandler } from 'lykosjs'
+import type { Database } from '../../config/db/drizzle'
+import { verifyUser } from '../../config/token/verify-user'
 
 const SOCIAL_KEYS = [
   'facebookUrl',
@@ -31,39 +30,30 @@ const UPLOAD_FOLDERS = {
   cover: 'user-profiles/covers',
 } as const
 
-const ALLOWED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-] as const
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
 type SocialKey = (typeof SOCIAL_KEYS)[number]
 type Socials = UserProfile['socials']
 type FieldErrors = Record<string, string[]>
-type UploadResult = Awaited<
-  ReturnType<typeof cloudinary.images.uploadImage>
->
+type UploadResult = Awaited<ReturnType<typeof cloudinary.images.uploadImage>>
 
 export class UserProfilesController {
-  constructor(
-    private readonly db: PgDatabase<PgQueryResultHKT>,
-    private readonly userProfileSchema: typeof UserProfileSchema,
-  ) {}
+  constructor(private readonly db: Database) {}
 
-  readonly update: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
-    const formData = await spongReq.formData()
+  readonly update: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
+    const formData = await ctx.formData()
 
-    const [profile] = await this.db
+    const [profile] = await this.db.connection
       .select()
-      .from(this.userProfileSchema)
-      .where(eq(this.userProfileSchema.userId, userId))
+      .from(UserProfileSchema)
+      .where(eq(UserProfileSchema.userId, userId))
       .limit(1)
 
     if (!profile) {
-      return spongRes.SpongNotFound({
+      return reply.NotFound({
         success: false,
         message: 'Profile not found',
       })
@@ -71,12 +61,8 @@ export class UserProfilesController {
 
     const errors: FieldErrors = {}
 
-    const updates: Partial<
-      Pick<
-        UserProfile,
-        'bio' | 'website' | 'socials' | 'avatar' | 'cover'
-      >
-    > = {}
+    const updates: Partial<Pick<UserProfile, 'bio' | 'website' | 'socials' | 'avatar' | 'cover'>> =
+      {}
 
     const text: { bio?: string; website?: string } = {}
 
@@ -89,10 +75,7 @@ export class UserProfilesController {
     if (clearWebsite) delete text.website
 
     if (Object.keys(text).length > 0) {
-      const { valid, errors: textErrors } = Validator.validate(
-        text,
-        UpdateUserProfileRule,
-      )
+      const { valid, errors: textErrors } = Validator.validate(text, UpdateUserProfileRule)
 
       if (valid) Object.assign(updates, text)
       else Object.assign(errors, textErrors)
@@ -117,11 +100,7 @@ export class UserProfilesController {
 
       if (!(file instanceof File) || file.size === 0) continue
 
-      if (
-        !ALLOWED_IMAGE_TYPES.includes(
-          file.type as (typeof ALLOWED_IMAGE_TYPES)[number],
-        )
-      ) {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {
         errors[field] = ['Only JPEG, PNG, and WebP images are allowed']
         continue
       }
@@ -135,7 +114,7 @@ export class UserProfilesController {
     }
 
     if (Object.keys(errors).length > 0) {
-      return spongRes.SpongUnprocessableContent({
+      return reply.UnprocessableContent({
         success: false,
         message: 'Validation failed',
         errors,
@@ -153,10 +132,7 @@ export class UserProfilesController {
 
         if (!file) continue
 
-        const result = await cloudinary.images.uploadImage(
-          file,
-          UPLOAD_FOLDERS[field],
-        )
+        const result = await cloudinary.images.uploadImage(file, UPLOAD_FOLDERS[field])
 
         uploaded.push(result)
 
@@ -166,10 +142,10 @@ export class UserProfilesController {
         updates[field] = result
       }
 
-      const [row] = await this.db
-        .update(this.userProfileSchema)
+      const [row] = await this.db.connection
+        .update(UserProfileSchema)
         .set({ ...updates, updatedAt: new Date() })
-        .where(eq(this.userProfileSchema.id, profile.id))
+        .where(eq(UserProfileSchema.id, profile.id))
         .returning()
 
       if (!row) throw new Error('Failed to update profile')
@@ -180,9 +156,7 @@ export class UserProfilesController {
       // Cleanup failures must not replace it.
       if (uploaded.length > 0) {
         try {
-          await cloudinary.images.destroyImagesMany(
-            uploaded.map((result) => result.publicId),
-          )
+          await cloudinary.images.destroyImagesMany(uploaded.map((result) => result.publicId))
         } catch {
           // Cleanup can be retried separately.
         }
@@ -202,7 +176,7 @@ export class UserProfilesController {
       }),
     )
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: true,
       message: 'Profile updated successfully',
       data: {
@@ -216,10 +190,7 @@ export class UserProfilesController {
     })
   }
 
-  private parseSocials(
-    raw: string,
-    current: Socials,
-  ): { socials?: Socials; errors: FieldErrors } {
+  private parseSocials(raw: string, current: Socials): { socials?: Socials; errors: FieldErrors } {
     let input: unknown
 
     try {
@@ -228,44 +199,35 @@ export class UserProfilesController {
       return { errors: { socials: ['Invalid JSON format'] } }
     }
 
-    if (
-      typeof input !== 'object' ||
-      input === null ||
-      Array.isArray(input)
-    ) {
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
       return { errors: { socials: ['Socials must be an object'] } }
     }
 
     const socials = { ...current }
     const errors: FieldErrors = {}
 
-    for (const [key, rawValue] of Object.entries(
-      input as Record<string, unknown>,
-    )) {
+    for (const [key, rawValue] of Object.entries(input as Record<string, unknown>)) {
       if (!(SOCIAL_KEYS as readonly string[]).includes(key)) {
         ;(errors.socials ??= []).push(`Unknown social field: ${key}`)
         continue
       }
 
       const socialKey = key as SocialKey
-      const value =
-        typeof rawValue === 'string' ? rawValue.trim() : rawValue
+      const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue
 
       if (value === null || value === '') {
         socials[socialKey] = null
-      } else if (
-        typeof value === 'string' &&
-        /^https?:\/\//i.test(value) &&
-        URL.canParse(value)
-      ) {
+      } else if (typeof value === 'string' && /^https?:\/\//i.test(value) && URL.canParse(value)) {
         socials[socialKey] = value
       } else {
         errors[key] = ['Must be a valid HTTP or HTTPS URL']
       }
     }
 
-    return Object.keys(errors).length > 0
-      ? { errors }
-      : { socials, errors }
+    return Object.keys(errors).length > 0 ? { errors } : { socials, errors }
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
