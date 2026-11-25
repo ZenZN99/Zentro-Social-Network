@@ -1,40 +1,41 @@
-import type { SpongHandler } from 'riser-bob'
 import type { SupportMessagesService } from './support-messages.service'
 import type { User } from '../users/schemas/user.schema'
+import type { ContextHandler } from 'lykosjs'
+import { verifyUser } from '../../config/token/verify-user'
 
 export class SupportMessagesController {
   constructor(private readonly supportMessagesService: SupportMessagesService) {}
 
-  readonly create: SpongHandler = async (spongReq, spongRes) => {
-    const currentUser = spongReq.user as User
+  readonly create: ContextHandler = async (ctx, reply) => {
+    const currentUser = ctx.user as User
 
-    const { conversationId } = spongReq.params
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Support conversation ID is required',
       })
     }
 
-    const formData = await spongReq.formData()
+    const formData = await ctx.formData()
 
     const result = await this.supportMessagesService.create(currentUser, conversationId, formData)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result.success,
       message: result.message,
       data: result.data,
     })
   }
 
-  readonly findAll: SpongHandler = async (spongReq, spongRes) => {
-    const currentUser = spongReq.user as User
+  readonly findAll: ContextHandler = async (ctx, reply) => {
+    const currentUser = ctx.user as User
 
-    const { conversationId } = spongReq.params
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Support conversation ID is required',
       })
@@ -42,19 +43,19 @@ export class SupportMessagesController {
 
     const result = await this.supportMessagesService.findAll(currentUser, conversationId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly markAllAsRead: SpongHandler = async (spongReq, spongRes) => {
-    const currentUser = spongReq.user as User
+  readonly markAllAsRead: ContextHandler = async (ctx, reply) => {
+    const currentUser = ctx.user as User
 
-    const { conversationId } = spongReq.params
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Support conversation ID is required',
       })
@@ -62,18 +63,18 @@ export class SupportMessagesController {
 
     const result = await this.supportMessagesService.markAllAsRead(currentUser, conversationId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
       data: result.data,
     })
   }
 
-  readonly delete: SpongHandler = async (spongReq, spongRes) => {
-    const { conversationId, messageId } = spongReq.params
+  readonly delete: ContextHandler = async (ctx, reply) => {
+    const { conversationId, messageId } = ctx.params
 
     if (!conversationId || !messageId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Support conversation ID and message ID is required',
       })
@@ -81,9 +82,13 @@ export class SupportMessagesController {
 
     const result = await this.supportMessagesService.delete(conversationId, messageId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
     })
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
