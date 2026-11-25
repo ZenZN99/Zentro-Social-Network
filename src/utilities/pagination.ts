@@ -1,11 +1,8 @@
-import type { SpongRequest } from 'riser-bob'
+import type { Context } from 'lykosjs'
 
-export function getPagination(spongReq: SpongRequest) {
-  const page = Math.max(1, Number(spongReq.query.get('page')) || 1)
-  const limit = Math.min(
-    100,
-    Math.max(1, Number(spongReq.query.get('limit')) || 10),
-  )
+export function getPagination(ctx: Context) {
+  const page = Math.max(1, Number(ctx.query.get('page')) || 1)
+  const limit = Math.min(100, Math.max(1, Number(ctx.query.get('limit')) || 10))
 
   return { page, limit, offset: (page - 1) * limit }
 }
