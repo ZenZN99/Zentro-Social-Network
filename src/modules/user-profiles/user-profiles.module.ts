@@ -1,30 +1,18 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import { AuthMiddleware, bind, defineAuth, DIModule, Lykos } from 'lykosjs'
+import { Database } from '../../config/db/drizzle'
+import { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 import { UserProfilesController } from './user-profiles.controller'
 import { UserProfilesRouter } from './user-profiles.route'
-import { UserProfileSchema } from './schemas/user-profile.schema'
-import { verifyUser } from '../../config/token/verify-user'
-import { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
-import { database } from '../../config/db/drizzle'
 
-export class UserProfilesModule {
-  register(bob: RiserBob): void {
-    const userProfilesController = new UserProfilesController(database, UserProfileSchema)
-
-    const authMiddleware = new AuthMiddleware(verifyUser, {
-      mode: 'cookie',
-      cookieName: 'accessToken',
-    })
-
-    const userActiveMiddleware = new UserActiveMiddleware()
-
-    const router = new UserProfilesRouter(
-      bob,
-      userProfilesController,
-      authMiddleware,
-      userActiveMiddleware,
-    )
-
-    router.register()
-  }
+export class UserProfilesModule extends DIModule {
+  override providers = [Database, UserActiveMiddleware]
+  override controllers = [bind(UserProfilesController, Database)]
+  override routers = [
+    bind(UserProfilesRouter, Lykos, UserProfilesController, AuthMiddleware, UserActiveMiddleware),
+  ]
+  override auth = defineAuth({
+    verifier: UserProfilesController,
+    mode: 'cookie',
+    cookieName: 'accessToken',
+  })
 }
