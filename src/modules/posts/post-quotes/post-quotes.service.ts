@@ -2,8 +2,8 @@ import { eq, desc } from 'drizzle-orm'
 import type { NodePgTransaction } from 'drizzle-orm/node-postgres'
 import type { ExtractTablesWithRelations } from 'drizzle-orm'
 import { PostQuoteSchema } from './schemas/post-quote.schema'
-import type { database } from '../../../config/db/drizzle'
-import { SpongBadRequestException } from 'riser-bob'
+import type { Database, database } from '../../../config/db/drizzle'
+import { BadRequestException } from 'lykosjs'
 
 type Transaction = NodePgTransaction<
   Record<string, never>,
@@ -11,18 +11,18 @@ type Transaction = NodePgTransaction<
 >
 
 export class PostQuotesService {
-  constructor(private readonly db: typeof database) {}
+  constructor(private readonly db: Database) {}
 
   async attach(postId: string, quotedPostId: string, transaction?: Transaction): Promise<void> {
     if (!postId.trim() || !quotedPostId.trim()) {
-      throw new SpongBadRequestException('Post IDs are required')
+      throw new BadRequestException('Post IDs are required')
     }
 
     if (postId === quotedPostId) {
-      throw new SpongBadRequestException('A post cannot quote itself')
+      throw new BadRequestException('A post cannot quote itself')
     }
 
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     try {
       await db.insert(PostQuoteSchema).values({
@@ -38,7 +38,7 @@ export class PostQuotesService {
         'code' in error &&
         error.code === '23505'
       ) {
-        throw new SpongBadRequestException('This quote already exists')
+        throw new BadRequestException('This quote already exists')
       }
 
       throw error
@@ -46,7 +46,7 @@ export class PostQuotesService {
   }
 
   async detach(postId: string, transaction?: Transaction): Promise<number> {
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const deleted = await db
       .delete(PostQuoteSchema)
@@ -57,7 +57,7 @@ export class PostQuotesService {
   }
 
   async findByPostId(postId: string, transaction?: Transaction) {
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const [quote] = await db
       .select()
