@@ -1,24 +1,20 @@
 import { and, count, desc, eq, getTableColumns } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { UserSchema } from '../users/schemas/user.schema'
 import { SupportConversationSchema } from './schemas/support-conversation.schema'
 import { SupportConversationStatus } from './schemas/enums/status'
 import { buildPagination } from '../../utilities/pagination'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import { UserRole } from '../users/schemas/enums/user-role'
-import {
-  SpongBadRequestException,
-  SpongNotFoundException,
-  SpongUnauthorizedException,
-} from 'riser-bob'
+import { BadRequestException, NotFoundException, UnauthorizedException } from 'lykosjs'
 
 export class SupportConversationsService {
-  constructor(private readonly db: typeof database) {}
+  constructor(private readonly db: Database) {}
 
   async create(userId: string) {
     // Check if the user already has an open conversation
-    const [existingConversation] = await this.db
+    const [existingConversation] = await this.db.connection
       .select()
       .from(SupportConversationSchema)
       .where(
@@ -30,27 +26,27 @@ export class SupportConversationsService {
       .limit(1)
 
     if (existingConversation) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'You already have an open support conversation',
       })
     }
 
     // Make sure the user exists
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select({ id: UserSchema.id })
       .from(UserSchema)
       .where(eq(UserSchema.id, userId))
       .limit(1)
 
     if (!user) {
-      throw new SpongUnauthorizedException({
+      throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
     }
 
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .insert(SupportConversationSchema)
       .values({
         userId,
@@ -71,7 +67,7 @@ export class SupportConversationsService {
     const lastMessageSender = alias(UserSchema, 'last_message_sender')
     const closedByUser = alias(UserSchema, 'closed_by_user')
 
-    const rows = await this.db
+    const rows = await this.db.connection
       .select({
         ...getTableColumns(SupportConversationSchema),
 
@@ -104,7 +100,7 @@ export class SupportConversationsService {
       .limit(limit)
       .offset(offset)
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({ total: count() })
       .from(SupportConversationSchema)
 
@@ -168,7 +164,7 @@ export class SupportConversationsService {
   async findMe(userId: string) {
     const lastMessageSender = alias(UserSchema, 'last_message_sender')
 
-    const rows = await this.db
+    const rows = await this.db.connection
       .select({
         ...getTableColumns(SupportConversationSchema),
 
@@ -247,7 +243,7 @@ export class SupportConversationsService {
   }
 
   async findOne(userId: string, conversationId: string) {
-    const [currentUser] = await this.db
+    const [currentUser] = await this.db.connection
       .select({
         id: UserSchema.id,
         role: UserSchema.role,
@@ -257,7 +253,7 @@ export class SupportConversationsService {
       .limit(1)
 
     if (!currentUser) {
-      throw new SpongUnauthorizedException({
+      throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
@@ -275,7 +271,7 @@ export class SupportConversationsService {
           eq(SupportConversationSchema.userId, userId),
         )
 
-    const [row] = await this.db
+    const [row] = await this.db.connection
       .select({
         ...getTableColumns(SupportConversationSchema),
 
@@ -308,7 +304,7 @@ export class SupportConversationsService {
       .limit(1)
 
     if (!row) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Support conversation not found',
       })
@@ -369,21 +365,21 @@ export class SupportConversationsService {
   }
 
   async toggle(adminId: string, conversationId: string) {
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select()
       .from(SupportConversationSchema)
       .where(eq(SupportConversationSchema.id, conversationId))
       .limit(1)
 
     if (!conversation) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Support conversation not found',
       })
     }
 
     if (conversation.status === SupportConversationStatus.OPEN) {
-      const [updatedConversation] = await this.db
+      const [updatedConversation] = await this.db.connection
         .update(SupportConversationSchema)
         .set({
           status: SupportConversationStatus.CLOSED,
@@ -401,7 +397,7 @@ export class SupportConversationsService {
       }
     }
 
-    const [updatedConversation] = await this.db
+    const [updatedConversation] = await this.db.connection
       .update(SupportConversationSchema)
       .set({
         status: SupportConversationStatus.OPEN,
