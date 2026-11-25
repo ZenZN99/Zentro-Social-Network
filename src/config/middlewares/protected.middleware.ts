@@ -1,14 +1,14 @@
 import {
   MiddlewarePipeline,
-  type SpongMiddleware,
-  type SpongRequest,
-  type SpongResponse,
-} from 'riser-bob';
-
-import { AuthMiddleware } from 'riser-bob';
-import { UserActiveMiddleware } from './user-active.middleware';
-import { RolesMiddleware } from './roles.middleware';
-import { UserRole } from '../../modules/users/schemas/enums/user-role';
+  type ContextMiddleware,
+  type Context,
+  type Reply,
+  type NextFunc,
+} from 'lykosjs'
+import { AuthMiddleware } from 'lykosjs'
+import { UserActiveMiddleware } from './user-active.middleware'
+import { RolesMiddleware } from './roles.middleware'
+import { UserRole } from '../../modules/users/schemas/enums/user-role'
 
 export class ProtectedMiddleware {
   constructor(
@@ -17,33 +17,23 @@ export class ProtectedMiddleware {
     private readonly rolesMiddleware: RolesMiddleware,
   ) {}
 
-  auth(
-    ...middlewares: SpongMiddleware<SpongRequest>[]
-  ): SpongMiddleware<SpongRequest> {
-    const pipeline = new MiddlewarePipeline<SpongRequest>();
+  auth(...middlewares: ContextMiddleware<Context>[]): ContextMiddleware<Context> {
+    const pipeline = new MiddlewarePipeline<Context>()
 
-    pipeline
-      .use(this.authMiddleware.middleware)
-      .use(this.userActiveMiddleware.middleware);
+    pipeline.use(this.authMiddleware.middleware).use(this.userActiveMiddleware.middleware)
 
     for (const middleware of middlewares) {
-      pipeline.use(middleware);
+      pipeline.use(middleware)
     }
 
-    return (
-      context: SpongRequest,
-      spongRes: SpongResponse,
-      spongNext: () => Promise<Response>,
-    ) => pipeline.execute(context, spongRes, spongNext);
+    return (ctx: Context, reply: Reply, next: NextFunc) => pipeline.execute(ctx, reply, next)
   }
 
-  admin(): SpongMiddleware<SpongRequest> {
-    return this.auth(this.rolesMiddleware.allow(UserRole.ADMIN));
+  admin(): ContextMiddleware<Context> {
+    return this.auth(this.rolesMiddleware.allow(UserRole.ADMIN))
   }
 
-  adminAndSupport(): SpongMiddleware<SpongRequest> {
-    return this.auth(
-      this.rolesMiddleware.allow(UserRole.ADMIN, UserRole.SUPPORT),
-    );
+  adminAndSupport(): ContextMiddleware<Context> {
+    return this.auth(this.rolesMiddleware.allow(UserRole.ADMIN, UserRole.SUPPORT))
   }
 }
