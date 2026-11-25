@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
-import { SpongBadRequestException, SpongNotFoundException } from 'riser-bob'
-import type { database } from '../../../config/db/drizzle'
+import { BadRequestException, NotFoundException } from 'lykosjs'
+import type { Database, database } from '../../../config/db/drizzle'
 import { buildPagination } from '../../../utilities/pagination'
 import { sanitizeUser } from '../../../utilities/sanitize-user'
 import type { NotificationsService } from '../../notifications/notifications.service'
@@ -64,7 +64,7 @@ function createFakeDb() {
   }
 
   return {
-    db: db as unknown as typeof database,
+    db: { connection: db } as unknown as Database,
     outcomes,
     enqueue: (...chains: QueryChain[]) => outcomes.push(...chains),
     select: db.select,
@@ -329,9 +329,7 @@ describe('UsersService', () => {
     test('throws not found when the username does not exist', async () => {
       fakeDb.enqueue(rows([]))
 
-      await expect(service.findOneByUsername('unknown')).rejects.toBeInstanceOf(
-        SpongNotFoundException,
-      )
+      await expect(service.findOneByUsername('unknown')).rejects.toBeInstanceOf(NotFoundException)
 
       expect(fakeDb.select).toHaveBeenCalledTimes(1)
     })
@@ -339,7 +337,7 @@ describe('UsersService', () => {
     test('throws not found when the user is inactive', async () => {
       fakeDb.enqueue(rows([makeUser({ isActive: false })]))
 
-      await expect(service.findOneByUsername('zen')).rejects.toBeInstanceOf(SpongNotFoundException)
+      await expect(service.findOneByUsername('zen')).rejects.toBeInstanceOf(NotFoundException)
 
       expect(fakeDb.select).toHaveBeenCalledTimes(1)
     })
@@ -354,7 +352,7 @@ describe('UsersService', () => {
   describe('updateRole', () => {
     test('rejects roles other than USER and SUPPORT', async () => {
       await expect(service.updateRole('admin-1', 'user-1', UserRole.ADMIN)).rejects.toBeInstanceOf(
-        SpongBadRequestException,
+        BadRequestException,
       )
 
       expect(fakeDb.select).not.toHaveBeenCalled()
@@ -366,7 +364,7 @@ describe('UsersService', () => {
       fakeDb.enqueue(rows([]))
 
       await expect(service.updateRole('admin-1', 'user-1', UserRole.USER)).rejects.toBeInstanceOf(
-        SpongNotFoundException,
+        NotFoundException,
       )
 
       expect(fakeDb.update).not.toHaveBeenCalled()
@@ -377,7 +375,7 @@ describe('UsersService', () => {
       fakeDb.enqueue(rows([makeUser({ isActive: false })]))
 
       await expect(service.updateRole('admin-1', 'user-1', UserRole.USER)).rejects.toBeInstanceOf(
-        SpongNotFoundException,
+        NotFoundException,
       )
 
       expect(fakeDb.update).not.toHaveBeenCalled()
@@ -432,9 +430,7 @@ describe('UsersService', () => {
     test('throws not found when the user does not exist', async () => {
       fakeDb.enqueue(rows([]))
 
-      await expect(service.block('admin-1', 'user-1')).rejects.toBeInstanceOf(
-        SpongNotFoundException,
-      )
+      await expect(service.block('admin-1', 'user-1')).rejects.toBeInstanceOf(NotFoundException)
 
       expect(fakeDb.update).not.toHaveBeenCalled()
       expect(notifications.create).not.toHaveBeenCalled()
@@ -443,9 +439,7 @@ describe('UsersService', () => {
     test('throws not found when the user is inactive', async () => {
       fakeDb.enqueue(rows([makeUser({ isActive: false })]))
 
-      await expect(service.block('admin-1', 'user-1')).rejects.toBeInstanceOf(
-        SpongNotFoundException,
-      )
+      await expect(service.block('admin-1', 'user-1')).rejects.toBeInstanceOf(NotFoundException)
 
       expect(fakeDb.update).not.toHaveBeenCalled()
       expect(notifications.create).not.toHaveBeenCalled()
