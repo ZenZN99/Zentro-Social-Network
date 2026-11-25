@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from 'bun:test'
 import type { NotificationsService } from '../../notifications/notifications.service'
-import type { database } from '../../../config/db/drizzle'
+import type { Database, database } from '../../../config/db/drizzle'
 import { NotificationType } from '../../notifications/schemas/enums/notification-type'
 import { CommentsService } from '../comments.service'
 
@@ -70,7 +70,10 @@ const makeDependencies = () => {
     create: mock(async () => undefined),
   } as unknown as NotificationsService
 
-  const service = new CommentsService(db as unknown as typeof database, notificationsService)
+  const service = new CommentsService(
+    { connection: db } as unknown as Database,
+    notificationsService,
+  )
 
   return {
     db,
