@@ -4,7 +4,7 @@ import { buildPagination } from '../../utilities/pagination'
 import { UserSchema } from '../users/schemas/user.schema'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import { FollowSchema } from '../follows/schemas/follow.schema'
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { PostSchema } from './schemas/post.schema'
 import { and, count, desc, eq, isNotNull, or, sql } from 'drizzle-orm'
 import type { PostMentionsService } from './post-mentions/post-mentions.service'
@@ -16,14 +16,14 @@ import type { CreatePostBody, UpdatePostBody } from './posts.controller'
 import type { NotificationsService } from '../notifications/notifications.service'
 import { NotificationType } from '../notifications/schemas/enums/notification-type'
 import {
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-  SpongUnprocessableEntityException,
-} from 'riser-bob'
+  InternalServerErrorException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from 'lykosjs'
 
 export class PostsService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly postMentionsService: PostMentionsService,
     private readonly hashtagsService: HashtagsService,
     private readonly postHashtagsService: PostHashtagsService,
@@ -64,7 +64,7 @@ export class PostsService {
       }
 
       // ADDED: Fetch sender user (used for notification message)
-      const [user] = await this.db
+      const [user] = await this.db.connection
         .select({
           firstName: UserSchema.firstName,
           lastName: UserSchema.lastName,
@@ -74,14 +74,14 @@ export class PostsService {
         .limit(1)
 
       if (!user) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'User not found',
         })
       }
 
       // 4. Create post and optional relations
-      const post = await this.db.transaction(async (transaction) => {
+      const post = await this.db.connection.transaction(async (transaction) => {
         // 4.1 Check quoted post if provided
         if (quotedPostId) {
           const [originalPost] = await transaction
@@ -91,7 +91,7 @@ export class PostsService {
             .limit(1)
 
           if (!originalPost) {
-            throw new SpongNotFoundException({
+            throw new NotFoundException({
               success: false,
               message: 'Quoted post not found',
             })
@@ -106,7 +106,7 @@ export class PostsService {
         )
 
         if (invalidMentionIds.length > 0) {
-          throw new SpongUnprocessableEntityException({
+          throw new UnprocessableEntityException({
             success: false,
             message: 'Some mentioned users do not exist',
             errors: {
@@ -130,7 +130,7 @@ export class PostsService {
           .returning()
 
         if (!newPost) {
-          throw new SpongInternalServerErrorException({
+          throw new InternalServerErrorException({
             success: false,
             message: 'Failed to create post',
           })
@@ -177,7 +177,7 @@ export class PostsService {
         return newPost
       })
 
-      const followers = await this.db
+      const followers = await this.db.connection
         .select({
           followerId: FollowSchema.followerId,
         })
@@ -211,7 +211,7 @@ export class PostsService {
         uploadedImages.map((image) => cloudinary.images.destroyImage(image.publicId)),
       )
 
-      throw new SpongInternalServerErrorException(
+      throw new InternalServerErrorException(
         {
           success: false,
           message: 'Failed to create post',
@@ -234,7 +234,7 @@ export class PostsService {
     const whereCondition = or(...visibilityConditions)
 
     const [posts, countResult] = await Promise.all([
-      this.db
+      this.db.connection
         .select({
           post: PostSchema,
           author: {
@@ -258,7 +258,7 @@ export class PostsService {
         .limit(limit)
         .offset(offset),
 
-      this.db
+      this.db.connection
         .select({ total: count() })
         .from(PostSchema)
         .leftJoin(UserSchema, eq(PostSchema.authorId, UserSchema.id))
@@ -280,7 +280,7 @@ export class PostsService {
 
   async findMe(userId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
     const [posts, countResult] = await Promise.all([
-      this.db
+      this.db.connection
         .select({
           post: PostSchema,
           author: {
@@ -297,7 +297,10 @@ export class PostsService {
         .limit(limit)
         .offset(offset),
 
-      this.db.select({ total: count() }).from(PostSchema).where(eq(PostSchema.authorId, userId)),
+      this.db.connection
+        .select({ total: count() })
+        .from(PostSchema)
+        .where(eq(PostSchema.authorId, userId)),
     ])
 
     const total = countResult[0]?.total ?? 0
@@ -316,21 +319,21 @@ export class PostsService {
     limit = 10,
     offset = (page - 1) * limit,
   ) {
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select({ id: UserSchema.id })
       .from(UserSchema)
       .where(eq(UserSchema.id, targetUserId))
       .limit(1)
 
     if (!user) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'User not found',
       })
     }
 
     const followedUserIds = currentUserId
-      ? await this.db
+      ? await this.db.connection
           .select({ followingId: FollowSchema.followingId })
           .from(FollowSchema)
           .where(eq(FollowSchema.followerId, currentUserId))
@@ -354,7 +357,7 @@ export class PostsService {
     const whereCondition = and(eq(PostSchema.authorId, targetUserId), or(...visibilityConditions))
 
     const [posts, countResult] = await Promise.all([
-      this.db
+      this.db.connection
         .select({
           post: PostSchema,
           author: {
@@ -381,7 +384,7 @@ export class PostsService {
         .limit(limit)
         .offset(offset),
 
-      this.db.select({ total: count() }).from(PostSchema).where(whereCondition),
+      this.db.connection.select({ total: count() }).from(PostSchema).where(whereCondition),
     ])
 
     const total = countResult[0]?.total ?? 0
@@ -394,7 +397,7 @@ export class PostsService {
   }
 
   async findOne(postId: string, userId: string) {
-    const [post] = await this.db
+    const [post] = await this.db.connection
       .select({
         post: PostSchema,
         author: {
@@ -410,14 +413,14 @@ export class PostsService {
       .limit(1)
 
     if (!post) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Post not found',
       })
     }
 
     if (post.post.visibility === VisibilityStatus.PRIVATE && post.post.authorId !== userId) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Post not found',
       })
@@ -425,13 +428,13 @@ export class PostsService {
 
     if (post.post.visibility === VisibilityStatus.FOLLOWERS && post.post.authorId !== userId) {
       if (!userId) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Post not found',
         })
       }
 
-      const [follow] = await this.db
+      const [follow] = await this.db.connection
         .select({ id: FollowSchema.id })
         .from(FollowSchema)
         .where(
@@ -443,7 +446,7 @@ export class PostsService {
         .limit(1)
 
       if (!follow) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Post not found',
         })
@@ -489,7 +492,7 @@ export class PostsService {
       }
 
       // 4. Update post and optional relations
-      const post = await this.db.transaction(async (transaction) => {
+      const post = await this.db.connection.transaction(async (transaction) => {
         // 4.1 Find post and verify ownership
         const [existingPost] = await transaction
           .select()
@@ -498,7 +501,7 @@ export class PostsService {
           .limit(1)
 
         if (!existingPost) {
-          throw new SpongNotFoundException({
+          throw new NotFoundException({
             success: false,
             message: 'Post not found',
           })
@@ -567,7 +570,7 @@ export class PostsService {
           )
 
           if (invalidMentionIds.length > 0) {
-            throw new SpongUnprocessableEntityException({
+            throw new UnprocessableEntityException({
               success: false,
               message: 'Some mentioned users do not exist',
               errors: {
@@ -597,7 +600,7 @@ export class PostsService {
         uploadedImages.map((image) => cloudinary.images.destroyImage(image.publicId)),
       )
 
-      throw new SpongInternalServerErrorException(
+      throw new InternalServerErrorException(
         {
           success: false,
           message: 'Failed to update post',
@@ -612,7 +615,7 @@ export class PostsService {
   async delete(userId: string, postId: string) {
     try {
       // 1. Delete post and relations inside transaction
-      const deletedPost = await this.db.transaction(async (transaction) => {
+      const deletedPost = await this.db.connection.transaction(async (transaction) => {
         // 1.1 Find post and verify ownership
         const [post] = await transaction
           .select()
@@ -621,7 +624,7 @@ export class PostsService {
           .limit(1)
 
         if (!post) {
-          throw new SpongNotFoundException({
+          throw new NotFoundException({
             success: false,
             message: 'Post not found',
           })
@@ -687,7 +690,7 @@ export class PostsService {
         message: 'Post deleted successfully',
       } as const
     } catch (error) {
-      throw new SpongInternalServerErrorException(
+      throw new InternalServerErrorException(
         {
           success: false,
           message: 'Failed to delete post',
