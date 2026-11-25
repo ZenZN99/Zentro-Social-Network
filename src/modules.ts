@@ -1,4 +1,3 @@
-import type { RiserBob } from 'riser-bob'
 import { AuthModule } from './modules/auth/auth.module'
 import { UsersModule } from './modules/users/users.module'
 import { UserProfilesModule } from './modules/user-profiles/user-profiles.module'
@@ -15,25 +14,30 @@ import { SupportConversationsModule } from './modules/support-conversations/supp
 import { SupportMessagesModule } from './modules/support-messages/support-messages.module'
 import { ConversationsModule } from './modules/conversations/conversations.module'
 import { MessagesModule } from './modules/messages/messages.module'
-import type { Server } from 'socket.io'
 import { NotificationsModule } from './modules/notifications/notifications.module'
+import { PostHashtagsModule } from './modules/posts/post-hashtags/post-hashtags.module'
+import { PostMentionsModule } from './modules/posts/post-mentions/post-mentions.module'
+import { PostQuotesModule } from './modules/posts/post-quotes/post-quotes.module'
 
-export const Modules = async (bob: RiserBob, io: Server) => {
-  new AuthModule().register(bob)
-  new UsersModule().register(bob, io)
-  new UserProfilesModule().register(bob)
-  new UserVerificationsModule().register(bob, io)
-  new PostsModule().register(bob, io)
-  new HashtagsModule().register(bob)
-  new PostRepostsModule().register(bob, io)
-  new CommentsModule().register(bob, io)
-  new RepliesModule().register(bob, io)
-  new LikesModule().register(bob, io)
-  new FollowsModule().register(bob, io)
-  new BookmarksModule().register(bob)
-  new SupportConversationsModule().register(bob)
-  new SupportMessagesModule().register(bob)
-  new ConversationsModule().register(bob)
-  new MessagesModule().register(bob, io)
-  new NotificationsModule().register(bob, io)
-}
+export const Modules = [
+  AuthModule,
+  BookmarksModule,
+  CommentsModule,
+  ConversationsModule,
+  FollowsModule,
+  LikesModule,
+  MessagesModule,
+  NotificationsModule,
+  HashtagsModule,
+  PostHashtagsModule, //
+  PostMentionsModule, //
+  PostQuotesModule, //
+  PostRepostsModule,
+  PostsModule,
+  RepliesModule,
+  SupportConversationsModule,
+  SupportMessagesModule,
+  UserProfilesModule,
+  UserVerificationsModule,
+  UsersModule,
+]
