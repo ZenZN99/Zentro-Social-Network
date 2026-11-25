@@ -1,38 +1,26 @@
-import { AuthMiddleware, type RiserBob } from 'riser-bob'
-import { database } from '../../../config/db/drizzle'
+import { AuthMiddleware, DIModule, Lykos, bind, defineAuth } from 'lykosjs'
+import { NotificationsModule } from '../../notifications/notifications.module'
+import { Database } from '../../../config/db/drizzle'
 import { PostRepostsService } from './post-reposts.service'
-import { PostRepostsController } from './post-reposts.controller'
-import { verifyUser } from '../../../config/token/verify-user'
-import { UserActiveMiddleware } from '../../../config/middlewares/user-active.middleware'
-import { PostRepostsRouter } from './post-reposts.route'
-import type { Server } from 'socket.io'
-import { NotificationsGateway } from '../../../config/gateways/notifications.gateway'
 import { NotificationsService } from '../../notifications/notifications.service'
+import { UserActiveMiddleware } from '../../../config/middlewares/user-active.middleware'
+import { PostRepostsController } from './post-reposts.controller'
+import { PostRepostsRouter } from './post-reposts.route'
 
-export class PostRepostsModule {
-  register(bob: RiserBob, io: Server): void {
-    const notificationsGateway = new NotificationsGateway(io)
-
-    const notificationsService = new NotificationsService(database, notificationsGateway)
-
-    const postRepostsService = new PostRepostsService(database, notificationsService)
-
-    const postRepostsController = new PostRepostsController(postRepostsService)
-
-    const authMiddleware = new AuthMiddleware(verifyUser, {
-      mode: 'cookie',
-      cookieName: 'accessToken',
-    })
-
-    const userActiveMiddleware = new UserActiveMiddleware()
-
-    const router = new PostRepostsRouter(
-      bob,
-      postRepostsController,
-      authMiddleware,
-      userActiveMiddleware,
-    )
-
-    router.register()
-  }
+export class PostRepostsModule extends DIModule {
+  override imports = [NotificationsModule]
+  override providers = [
+    Database,
+    bind(PostRepostsService, Database, NotificationsService),
+    UserActiveMiddleware,
+  ]
+  override controllers = [bind(PostRepostsController, PostRepostsService)]
+  override routers = [
+    bind(PostRepostsRouter, Lykos, PostRepostsController, AuthMiddleware, UserActiveMiddleware),
+  ]
+  override auth = defineAuth({
+    verifier: PostRepostsController,
+    mode: 'cookie',
+    cookieName: 'accessToken',
+  })
 }
