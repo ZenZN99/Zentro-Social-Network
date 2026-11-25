@@ -1,11 +1,11 @@
 import { describe, expect, it, mock } from 'bun:test'
-import type { SpongHandler } from 'riser-bob'
+import type { ContextHandler } from 'lykosjs'
 import { UsersController } from '../users.controller'
 import type { UsersService } from '../users.service'
 import { UserRole } from '../schemas/enums/user-role'
 
-type SpongReq = Parameters<SpongHandler>[0]
-type SpongRes = Parameters<SpongHandler>[1]
+type Context = Parameters<ContextHandler>[0]
+type Reply = Parameters<ContextHandler>[1]
 
 function createReq({
   params = {},
@@ -22,19 +22,19 @@ function createReq({
     json: async <T>() => body as T,
   }
 
-  return req as unknown as SpongReq
+  return req as unknown as Context
 }
 
 function createRes() {
-  const SpongOK = mock((_body: unknown) => undefined)
-  const SpongBadRequest = mock((_body: unknown) => undefined)
+  const OK = mock((_body: unknown) => undefined)
+  const BadRequest = mock((_body: unknown) => undefined)
 
   const res = {
-    SpongOK,
-    SpongBadRequest,
-  } as unknown as SpongRes
+    OK,
+    BadRequest,
+  } as unknown as Reply
 
-  return { res, SpongOK, SpongBadRequest }
+  return { res, OK, BadRequest }
 }
 
 function createController() {
@@ -58,9 +58,7 @@ function createController() {
     })),
   }
 
-  const controller = new UsersController(
-    usersService as unknown as UsersService,
-  )
+  const controller = new UsersController(usersService as unknown as UsersService)
 
   return { controller, usersService }
 }
@@ -69,13 +67,13 @@ describe('UsersController', () => {
   describe('findAll', () => {
     it('should return users and pagination', async () => {
       const { controller, usersService } = createController()
-      const { res, SpongOK } = createRes()
+      const { res, OK } = createRes()
 
       await controller.findAll(createReq(), res)
 
       expect(usersService.findAll).toHaveBeenCalledTimes(1)
-      expect(SpongOK).toHaveBeenCalledTimes(1)
-      expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+      expect(OK).toHaveBeenCalledTimes(1)
+      expect(OK.mock.calls[0]?.[0]).toEqual({
         success: true,
         data: {
           users: [],
@@ -88,31 +86,28 @@ describe('UsersController', () => {
   describe('findOneByUsername', () => {
     it('should return bad request when username is missing', async () => {
       const { controller, usersService } = createController()
-      const { res, SpongBadRequest, SpongOK } = createRes()
+      const { res, BadRequest, OK } = createRes()
 
       await controller.findOneByUsername(createReq(), res)
 
-      expect(SpongBadRequest).toHaveBeenCalledTimes(1)
-      expect(SpongBadRequest.mock.calls[0]?.[0]).toEqual({
+      expect(BadRequest).toHaveBeenCalledTimes(1)
+      expect(BadRequest.mock.calls[0]?.[0]).toEqual({
         success: false,
         message: 'User name is required',
       })
       expect(usersService.findOneByUsername).not.toHaveBeenCalled()
-      expect(SpongOK).not.toHaveBeenCalled()
+      expect(OK).not.toHaveBeenCalled()
     })
 
     it('should call service with username and return result', async () => {
       const { controller, usersService } = createController()
-      const { res, SpongOK } = createRes()
+      const { res, OK } = createRes()
 
-      await controller.findOneByUsername(
-        createReq({ params: { username: 'zen' } }),
-        res,
-      )
+      await controller.findOneByUsername(createReq({ params: { username: 'zen' } }), res)
 
       expect(usersService.findOneByUsername).toHaveBeenCalledWith('zen')
-      expect(SpongOK).toHaveBeenCalledTimes(1)
-      expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+      expect(OK).toHaveBeenCalledTimes(1)
+      expect(OK.mock.calls[0]?.[0]).toEqual({
         success: true,
         data: {},
       })
@@ -122,22 +117,22 @@ describe('UsersController', () => {
   describe('updateRole', () => {
     it('should return bad request when userId is missing', async () => {
       const { controller, usersService } = createController()
-      const { res, SpongBadRequest, SpongOK } = createRes()
+      const { res, BadRequest, OK } = createRes()
 
       await controller.updateRole(createReq(), res)
 
-      expect(SpongBadRequest).toHaveBeenCalledTimes(1)
-      expect(SpongBadRequest.mock.calls[0]?.[0]).toEqual({
+      expect(BadRequest).toHaveBeenCalledTimes(1)
+      expect(BadRequest.mock.calls[0]?.[0]).toEqual({
         success: false,
         message: 'User ID is required',
       })
       expect(usersService.updateRole).not.toHaveBeenCalled()
-      expect(SpongOK).not.toHaveBeenCalled()
+      expect(OK).not.toHaveBeenCalled()
     })
 
     it('should call service with adminId, userId and role', async () => {
       const { controller, usersService } = createController()
-      const { res, SpongOK } = createRes()
+      const { res, OK } = createRes()
 
       await controller.updateRole(
         createReq({
@@ -148,14 +143,10 @@ describe('UsersController', () => {
         res,
       )
 
-      expect(usersService.updateRole).toHaveBeenCalledWith(
-        'admin-1',
-        'user-1',
-        UserRole.SUPPORT,
-      )
+      expect(usersService.updateRole).toHaveBeenCalledWith('admin-1', 'user-1', UserRole.SUPPORT)
 
-      expect(SpongOK).toHaveBeenCalledTimes(1)
-      expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+      expect(OK).toHaveBeenCalledTimes(1)
+      expect(OK.mock.calls[0]?.[0]).toEqual({
         success: true,
         message: 'User role updated successfully',
       })
@@ -165,22 +156,22 @@ describe('UsersController', () => {
   describe('block', () => {
     it('should return bad request when userId is missing', async () => {
       const { controller, usersService } = createController()
-      const { res, SpongBadRequest, SpongOK } = createRes()
+      const { res, BadRequest, OK } = createRes()
 
       await controller.block(createReq(), res)
 
-      expect(SpongBadRequest).toHaveBeenCalledTimes(1)
-      expect(SpongBadRequest.mock.calls[0]?.[0]).toEqual({
+      expect(BadRequest).toHaveBeenCalledTimes(1)
+      expect(BadRequest.mock.calls[0]?.[0]).toEqual({
         success: false,
         message: 'User ID is required',
       })
       expect(usersService.block).not.toHaveBeenCalled()
-      expect(SpongOK).not.toHaveBeenCalled()
+      expect(OK).not.toHaveBeenCalled()
     })
 
     it('should call service with adminId and userId', async () => {
       const { controller, usersService } = createController()
-      const { res, SpongOK } = createRes()
+      const { res, OK } = createRes()
 
       await controller.block(
         createReq({
@@ -190,13 +181,10 @@ describe('UsersController', () => {
         res,
       )
 
-      expect(usersService.block).toHaveBeenCalledWith(
-        'admin-1',
-        'user-1',
-      )
+      expect(usersService.block).toHaveBeenCalledWith('admin-1', 'user-1')
 
-      expect(SpongOK).toHaveBeenCalledTimes(1)
-      expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+      expect(OK).toHaveBeenCalledTimes(1)
+      expect(OK.mock.calls[0]?.[0]).toEqual({
         success: true,
         message: 'User blocked successfully',
       })
