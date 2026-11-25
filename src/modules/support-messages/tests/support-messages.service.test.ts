@@ -1,12 +1,8 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import {
-  SpongBadRequestException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-} from 'riser-bob'
-import type { database } from '../../../config/db/drizzle'
+import { BadRequestException, InternalServerErrorException, NotFoundException } from 'lykosjs'
+import type { Database, database } from '../../../config/db/drizzle'
 import { SupportConversationStatus } from '../../support-conversations/schemas/enums/status'
 import { UserRole } from '../../users/schemas/enums/user-role'
 import type { User } from '../../users/schemas/user.schema'
@@ -245,7 +241,7 @@ let service: InstanceType<typeof SupportMessagesService>
 beforeEach(() => {
   db = createFakeDb()
   cloudinary = createFakeCloudinary()
-  service = new SupportMessagesService(db as unknown as typeof database)
+  service = new SupportMessagesService({ connection: db } as unknown as Database)
 })
 
 interface CreateSetup {
@@ -457,7 +453,7 @@ describe('SupportMessagesService.create', () => {
       const files = Array.from({ length: 6 }, (_, i) => makeFile(`f${i}.png`, 'image/png'))
 
       await expect(service.create(OWNER, CONV_ID, makeForm({ files }))).rejects.toBeInstanceOf(
-        SpongBadRequestException,
+        BadRequestException,
       )
 
       expectNothingUploaded()
@@ -483,7 +479,7 @@ describe('SupportMessagesService.create', () => {
         db.select.mockReturnValueOnce(rows([makeConversation()]))
 
         await expect(service.create(OWNER, CONV_ID, makeForm({ message }))).rejects.toBeInstanceOf(
-          SpongBadRequestException,
+          BadRequestException,
         )
 
         expect(db.insert).not.toHaveBeenCalled()
@@ -506,12 +502,12 @@ describe('SupportMessagesService.create', () => {
   })
 
   describe('authorization & conversation state', () => {
-    test('throws SpongNotFoundException when the conversation does not exist', async () => {
+    test('throws NotFoundException when the conversation does not exist', async () => {
       db.select.mockReturnValueOnce(rows([]))
 
       await expect(
         service.create(OWNER, 'ghost', makeForm({ message: 'hello' })),
-      ).rejects.toBeInstanceOf(SpongNotFoundException)
+      ).rejects.toBeInstanceOf(NotFoundException)
 
       expect(db.insert).not.toHaveBeenCalled()
       expect(db.update).not.toHaveBeenCalled()
@@ -523,7 +519,7 @@ describe('SupportMessagesService.create', () => {
 
       await expect(
         service.create(STRANGER, CONV_ID, makeForm({ message: 'hello' })),
-      ).rejects.toBeInstanceOf(SpongNotFoundException)
+      ).rejects.toBeInstanceOf(NotFoundException)
 
       expect(db.insert).not.toHaveBeenCalled()
       expect(db.update).not.toHaveBeenCalled()
@@ -540,8 +536,8 @@ describe('SupportMessagesService.create', () => {
         service.create(STRANGER, CONV_ID, makeForm({ message: 'hello' })),
       )
 
-      expect(missing).toBeInstanceOf(SpongNotFoundException)
-      expect(forbidden).toBeInstanceOf(SpongNotFoundException)
+      expect(missing).toBeInstanceOf(NotFoundException)
+      expect(forbidden).toBeInstanceOf(NotFoundException)
       expect((forbidden as Error).message).toBe((missing as Error).message)
     })
 
@@ -582,7 +578,7 @@ describe('SupportMessagesService.create', () => {
 
         await expect(
           service.create(OWNER, CONV_ID, makeForm({ message: 'hello' })),
-        ).rejects.toBeInstanceOf(SpongBadRequestException)
+        ).rejects.toBeInstanceOf(BadRequestException)
 
         expect(db.insert).not.toHaveBeenCalled()
         expectNothingUploaded()
@@ -597,7 +593,7 @@ describe('SupportMessagesService.create', () => {
             CONV_ID,
             makeForm({ message: 'hello' }),
           ),
-        ).rejects.toBeInstanceOf(SpongBadRequestException)
+        ).rejects.toBeInstanceOf(BadRequestException)
 
         expect(db.insert).not.toHaveBeenCalled()
       })
@@ -605,22 +601,22 @@ describe('SupportMessagesService.create', () => {
   })
 
   describe('persistence failures', () => {
-    test('throws SpongInternalServerErrorException when the insert returns no row', async () => {
+    test('throws InternalServerErrorException when the insert returns no row', async () => {
       const { updateChain } = queueCreate({ inserted: [] })
 
       await expect(
         service.create(OWNER, CONV_ID, makeForm({ message: 'hello' })),
-      ).rejects.toBeInstanceOf(SpongInternalServerErrorException)
+      ).rejects.toBeInstanceOf(InternalServerErrorException)
 
       expect(updateChain.set).not.toHaveBeenCalled()
     })
 
-    test('throws SpongNotFoundException when the freshly created message cannot be re-read', async () => {
+    test('throws NotFoundException when the freshly created message cannot be re-read', async () => {
       queueCreate({ full: null })
 
       await expect(
         service.create(OWNER, CONV_ID, makeForm({ message: 'hello' })),
-      ).rejects.toBeInstanceOf(SpongNotFoundException)
+      ).rejects.toBeInstanceOf(NotFoundException)
     })
 
     test('propagates database failures of the conversation lookup', async () => {
@@ -746,17 +742,17 @@ describe('SupportMessagesService.findAll', () => {
     expect(result.data).toHaveLength(1)
   })
 
-  test('throws SpongNotFoundException when the conversation does not exist', async () => {
+  test('throws NotFoundException when the conversation does not exist', async () => {
     db.select.mockReturnValueOnce(rows([]))
 
-    await expect(service.findAll(OWNER, 'ghost')).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.findAll(OWNER, 'ghost')).rejects.toBeInstanceOf(NotFoundException)
     expect(db.select).toHaveBeenCalledTimes(1)
   })
 
   test("never reads another user's messages (and never even queries them)", async () => {
     db.select.mockReturnValueOnce(rows([makeConversation()]))
 
-    await expect(service.findAll(STRANGER, CONV_ID)).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.findAll(STRANGER, CONV_ID)).rejects.toBeInstanceOf(NotFoundException)
 
     expect(db.select).toHaveBeenCalledTimes(1)
   })
@@ -859,21 +855,17 @@ describe('SupportMessagesService.markAllAsRead', () => {
     expect(result.data).toEqual([])
   })
 
-  test('throws SpongNotFoundException when the conversation does not exist', async () => {
+  test('throws NotFoundException when the conversation does not exist', async () => {
     db.select.mockReturnValueOnce(rows([]))
 
-    await expect(service.markAllAsRead(OWNER, 'ghost')).rejects.toBeInstanceOf(
-      SpongNotFoundException,
-    )
+    await expect(service.markAllAsRead(OWNER, 'ghost')).rejects.toBeInstanceOf(NotFoundException)
     expect(db.update).not.toHaveBeenCalled()
   })
 
   test("refuses to touch another user's conversation", async () => {
     db.select.mockReturnValueOnce(rows([makeConversation()]))
 
-    await expect(service.markAllAsRead(STRANGER, CONV_ID)).rejects.toBeInstanceOf(
-      SpongNotFoundException,
-    )
+    await expect(service.markAllAsRead(STRANGER, CONV_ID)).rejects.toBeInstanceOf(NotFoundException)
     expect(db.update).not.toHaveBeenCalled()
   })
 
@@ -933,10 +925,10 @@ describe('SupportMessagesService.delete', () => {
     expect(params).toContain(MESSAGE_ID)
   })
 
-  test('throws SpongNotFoundException when the message does not exist', async () => {
+  test('throws NotFoundException when the message does not exist', async () => {
     db.select.mockReturnValueOnce(rows([]))
 
-    await expect(service.delete(CONV_ID, 'ghost')).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.delete(CONV_ID, 'ghost')).rejects.toBeInstanceOf(NotFoundException)
 
     expect(db.delete).not.toHaveBeenCalled()
     expect(cloudinary.images.destroyImage).not.toHaveBeenCalled()
