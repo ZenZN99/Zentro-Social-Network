@@ -15,4 +15,8 @@ export const pool = new Pool({
       : undefined,
 })
 
-export const database = drizzle(pool)
+export class Database {
+  readonly connection = drizzle(pool);
+}
+
+export const database = new Database().connection;
