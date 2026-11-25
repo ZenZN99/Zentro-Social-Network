@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import {
-  SpongBadRequestException,
-  SpongNotFoundException,
-  SpongUnauthorizedException,
-} from 'riser-bob'
-import type { database } from '../../../config/db/drizzle'
+import { BadRequestException, NotFoundException, UnauthorizedException } from 'lykosjs'
+import type { Database, database } from '../../../config/db/drizzle'
 import { buildPagination } from '../../../utilities/pagination'
 import { UserRole } from '../../users/schemas/enums/user-role'
 import { SupportConversationStatus } from '../schemas/enums/status'
@@ -173,7 +169,7 @@ let service: SupportConversationsService
 
 beforeEach(() => {
   db = createFakeDb()
-  service = new SupportConversationsService(db as unknown as typeof database)
+  service = new SupportConversationsService({ connection: db } as unknown as Database)
 })
 
 /* ------------------------------- create ----------------------------------- */
@@ -231,16 +227,16 @@ describe('SupportConversationsService.create', () => {
   test('rejects when the user already has an open conversation', async () => {
     queueCreate({ existing: true })
 
-    await expect(service.create(USER_ID)).rejects.toBeInstanceOf(SpongBadRequestException)
+    await expect(service.create(USER_ID)).rejects.toBeInstanceOf(BadRequestException)
 
     expect(db.select).toHaveBeenCalledTimes(1)
     expect(db.insert).not.toHaveBeenCalled()
   })
 
-  test('throws SpongUnauthorizedException when the user does not exist', async () => {
+  test('throws UnauthorizedException when the user does not exist', async () => {
     queueCreate({ user: null })
 
-    await expect(service.create('ghost')).rejects.toBeInstanceOf(SpongUnauthorizedException)
+    await expect(service.create('ghost')).rejects.toBeInstanceOf(UnauthorizedException)
 
     expect(db.insert).not.toHaveBeenCalled()
   })
@@ -602,12 +598,10 @@ describe('SupportConversationsService.findOne', () => {
     expect(result.data).toMatchObject({ user: { profile: null } })
   })
 
-  test('throws SpongUnauthorizedException when the current user does not exist', async () => {
+  test('throws UnauthorizedException when the current user does not exist', async () => {
     db.select.mockReturnValueOnce(rows([]))
 
-    await expect(service.findOne('ghost', CONV_ID)).rejects.toBeInstanceOf(
-      SpongUnauthorizedException,
-    )
+    await expect(service.findOne('ghost', CONV_ID)).rejects.toBeInstanceOf(UnauthorizedException)
 
     expect(db.select).toHaveBeenCalledTimes(1)
   })
@@ -644,10 +638,10 @@ describe('SupportConversationsService.findOne', () => {
     })
   }
 
-  test('throws SpongNotFoundException when the conversation does not exist (or is not visible to the user)', async () => {
+  test('throws NotFoundException when the conversation does not exist (or is not visible to the user)', async () => {
     queueFindOne({ id: USER_ID, role: UserRole.USER }, null)
 
-    await expect(service.findOne(USER_ID, 'ghost')).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.findOne(USER_ID, 'ghost')).rejects.toBeInstanceOf(NotFoundException)
   })
 
   test('never selects sensitive user columns', async () => {
@@ -739,10 +733,10 @@ describe('SupportConversationsService.toggle', () => {
     expect(updateChain.set).toHaveBeenCalledWith(expect.objectContaining({ closedBy: ADMIN_ID }))
   })
 
-  test('throws SpongNotFoundException when the conversation does not exist', async () => {
+  test('throws NotFoundException when the conversation does not exist', async () => {
     queueToggle(null)
 
-    await expect(service.toggle(ADMIN_ID, 'ghost')).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.toggle(ADMIN_ID, 'ghost')).rejects.toBeInstanceOf(NotFoundException)
 
     expect(db.update).not.toHaveBeenCalled()
   })
