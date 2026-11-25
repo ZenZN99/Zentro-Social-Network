@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
-import type { SpongHandler } from 'riser-bob'
 import type { CommentsService } from '../comments.service'
+import type { ContextHandler } from 'lykosjs'
 
 const validatorMock = mock((_value: unknown, _rule: unknown): unknown => ({
   valid: true,
@@ -13,12 +13,15 @@ const getPaginationMock = mock(() => ({
   offset: 0,
 }))
 
-mock.module('riser-bob', () => ({
+const actualLykos = await import('lykosjs')
+
+mock.module('lykosjs', () => ({
+  ...actualLykos,
   Validator: {
+    ...actualLykos.Validator,
     validate: validatorMock,
   },
 }))
-
 mock.module('../../../utilities/pagination', () => ({
   getPagination: getPaginationMock,
 }))
@@ -83,14 +86,14 @@ const makeRequest = (options?: {
 })
 
 const makeResponse = () => ({
-  SpongBadRequest: mock((payload: unknown) => payload),
-  SpongUnprocessableContent: mock((payload: unknown) => payload),
-  SpongCreated: mock((payload: unknown) => payload),
-  SpongOK: mock((payload: unknown) => payload),
+  BadRequest: mock((payload: unknown) => payload),
+  UnprocessableContent: mock((payload: unknown) => payload),
+  Created: mock((payload: unknown) => payload),
+  OK: mock((payload: unknown) => payload),
 })
 
 const invoke = (
-  handler: SpongHandler,
+  handler: ContextHandler,
   request: ReturnType<typeof makeRequest>,
   response: ReturnType<typeof makeResponse>,
 ) => handler(request as never, response as never)
@@ -126,7 +129,7 @@ describe('CommentsController', () => {
       expect(validatorMock).toHaveBeenCalledTimes(1)
       expect(commentsService.create).toHaveBeenCalledWith('user-id', 'post-id', 'Test comment')
 
-      expect(response.SpongCreated).toHaveBeenCalledWith({
+      expect(response.Created).toHaveBeenCalledWith({
         success: true,
         message: 'Comment created successfully',
         data: { id: 'comment-id', content: 'Test comment' },
@@ -140,7 +143,7 @@ describe('CommentsController', () => {
 
       await invoke(controller.create, request, response)
 
-      expect(response.SpongBadRequest).toHaveBeenCalledWith({
+      expect(response.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Post ID is required',
       })
@@ -165,7 +168,7 @@ describe('CommentsController', () => {
 
       await invoke(controller.create, request, response)
 
-      expect(response.SpongUnprocessableContent).toHaveBeenCalledWith({
+      expect(response.UnprocessableContent).toHaveBeenCalledWith({
         success: false,
         message: 'validation failed',
         errors: [{ field: 'content', message: 'Content is required' }],
@@ -206,7 +209,7 @@ describe('CommentsController', () => {
 
       expect(commentsService.findAll).toHaveBeenCalledWith('post-id', 1, 10, 0)
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           comments: [{ id: 'comment-id' }],
@@ -222,7 +225,7 @@ describe('CommentsController', () => {
 
       await invoke(controller.findAll, request, response)
 
-      expect(response.SpongBadRequest).toHaveBeenCalledWith({
+      expect(response.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Post ID is required',
       })
@@ -282,7 +285,7 @@ describe('CommentsController', () => {
 
       expect(commentsService.findMe).toHaveBeenCalledWith('user-id', 1, 10, 0)
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           comments: [{ id: 'my-comment-id' }],
@@ -338,7 +341,7 @@ describe('CommentsController', () => {
 
       expect(commentsService.findOne).toHaveBeenCalledWith('comment-id')
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: { id: 'comment-id' },
       })
@@ -351,7 +354,7 @@ describe('CommentsController', () => {
 
       await invoke(controller.findOne, request, response)
 
-      expect(response.SpongBadRequest).toHaveBeenCalledWith({
+      expect(response.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Comment ID is required',
       })
@@ -397,7 +400,7 @@ describe('CommentsController', () => {
         'Updated comment',
       )
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         message: 'Comment updated successfully',
         data: { id: 'comment-id', content: 'Updated comment' },
@@ -411,7 +414,7 @@ describe('CommentsController', () => {
 
       await invoke(controller.update, request, response)
 
-      expect(response.SpongBadRequest).toHaveBeenCalledWith({
+      expect(response.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Comment ID is required',
       })
@@ -436,7 +439,7 @@ describe('CommentsController', () => {
 
       await invoke(controller.update, request, response)
 
-      expect(response.SpongUnprocessableContent).toHaveBeenCalledWith({
+      expect(response.UnprocessableContent).toHaveBeenCalledWith({
         success: false,
         message: 'validation failed',
         errors: [{ field: 'content', message: 'Invalid content' }],
@@ -476,7 +479,7 @@ describe('CommentsController', () => {
 
       expect(commentsService.delete).toHaveBeenCalledWith('user-id', 'comment-id')
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         message: 'Comment and all its replies deleted successfully',
       })
@@ -489,7 +492,7 @@ describe('CommentsController', () => {
 
       await invoke(controller.delete, request, response)
 
-      expect(response.SpongBadRequest).toHaveBeenCalledWith({
+      expect(response.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Comment ID is required',
       })
