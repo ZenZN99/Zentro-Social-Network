@@ -5,17 +5,17 @@
     "": {
       "name": "my-riser-bob-app",
       "dependencies": {
-        "@riser-bob/cloudinary": "^1.0.0",
-        "@riser-bob/cookie": "^0.1.1",
-        "@riser-bob/jwt": "^1.0.0",
-        "@riser-bob/openapi": "^0.1.0",
+        "@lykosjs/cloudinary": "^1.0.0",
+        "@lykosjs/cookie": "^1.0.0",
+        "@lykosjs/jwt": "^1.0.0",
+        "@lykosjs/openapi": "^1.0.0",
         "@socket.io/bun-engine": "^0.1.2",
         "@types/pg": "^8.23.1",
         "bcryptjs": "^3.0.3",
         "drizzle-kit": "^0.31.11",
         "drizzle-orm": "^0.45.4",
+        "lykosjs": "^1.0.0",
         "pg": "^8.23.1",
-        "riser-bob": "^1.2.5",
         "socket.io": "^4.8.4",
       },
       "devDependencies": {
@@ -83,13 +83,13 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.25.12", "", { "os": "win32", "cpu": "x64" }, "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=="],
 
-    "@riser-bob/cloudinary": ["@riser-bob/cloudinary@1.0.0", "", { "dependencies": { "cloudinary": "^2.5.1" }, "peerDependencies": { "riser-bob": "^1.1.0" } }, "sha512-urwlTro9d7ag1+pChgDju8DFfPh5hoL/5fmjTdBM7JJiCxYcYKOw9gijrdrhgxkiMuWMMXMbJdILuQcIn8ZSmw=="],
+    "@lykosjs/cloudinary": ["@lykosjs/cloudinary@1.0.0", "", { "dependencies": { "cloudinary": "^2.5.1" }, "peerDependencies": { "lykosjs": "^1.0.0" } }, "sha512-WHgg58kFTYm8d8/zzKy7fG6NJgrkJiguuShIVaS+HB2vzgIUiaRpAddjCONb6wf7C+yg5uVD83f/Rszwywaqxg=="],
 
-    "@riser-bob/cookie": ["@riser-bob/cookie@0.1.1", "", { "dependencies": { "cookie": "^2.0.1" } }, "sha512-//d5Bx9k9PBCvIVlwRSViO0aaK4YmeUzwZXsaqIk2NzWV26KVRZYk43X880gzeXs3ht+zSObRfuLaMO7D6gKAw=="],
+    "@lykosjs/cookie": ["@lykosjs/cookie@1.0.0", "", { "dependencies": { "cookie": "^2.0.1" } }, "sha512-toXcMFjGVWxNqWc579Ufi2Fl3A6LEAhEqnfNjmK+bmqWVoXaIFbCL/SUsgLywpFUF+MQGVOcpER3CK8ZrPxV6w=="],
 
-    "@riser-bob/jwt": ["@riser-bob/jwt@1.0.0", "", { "dependencies": { "jsonwebtoken": "^9.0.3" }, "peerDependencies": { "riser-bob": "^1.1.0" } }, "sha512-jBBuKXCuFCWxHdnxuFcm/38T4Wmhg/gcQicSGT7ah0BijjIzBCh3eSo+GLYIq0MD7kO8UC/Hlw0zYBy8zkOptQ=="],
+    "@lykosjs/jwt": ["@lykosjs/jwt@1.0.0", "", { "dependencies": { "jsonwebtoken": "^9.0.3" }, "peerDependencies": { "lykosjs": "^1.0.0" } }, "sha512-V/h0MUjcsnVPI7W4msdt1EgFGaTo2qXq3bvrCn5Q5moUHC27rV+RGCe14irDytqDbQ9gXf0vPv3bF30RXK9LRg=="],
 
-    "@riser-bob/openapi": ["@riser-bob/openapi@0.1.0", "", { "dependencies": { "swagger-ui-dist": "5.18.2" }, "peerDependencies": { "riser-bob": "latest" } }, "sha512-xd0CLoyTeO/sOK7qhhy+tBRdkbxysCtUqLepdLgm+QeqH8OHuXVJoDteJI3TdwEt/v4YZBQej7M4cghsnLp8jg=="],
+    "@lykosjs/openapi": ["@lykosjs/openapi@1.0.0", "", { "dependencies": { "swagger-ui-dist": "5.18.2" }, "peerDependencies": { "lykosjs": "1.0.0" } }, "sha512-lQ2122dCAqiew1xeM4Z2W3Zsqw3QuHQtPA/mJH/Tpmkf5inJvZTqg8UYS3mi6b0I1YF1sKMZwT1p2AXjSemjTg=="],
 
     "@scarf/scarf": ["@scarf/scarf@1.4.0", "", { "hasInstallScript": true }, "sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ=="],
 
@@ -163,6 +163,8 @@
 
     "lodash.once": ["lodash.once@4.1.1", "", {}, "sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg=="],
 
+    "lykosjs": ["lykosjs@1.0.0", "", { "dependencies": { "@lykosjs/cookie": "^1.0.0", "@socket.io/bun-engine": "^0.1.2", "socket.io": "^4.8.4" }, "peerDependencies": { "typescript": "^7.0.2" }, "bin": { "lykosjs": "dist/cli.js" } }, "sha512-b6ENDgZ/leRjIw/Lb3a8Il35L06S/i2extaFPoblKVNpBh67AFoCF4mUW5XtPMM62MKaZT0AUJrtjl878mn7MA=="],
+
     "mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
 
     "mime-types": ["mime-types@2.1.35", "", { "dependencies": { "mime-db": "1.52.0" } }, "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=="],
@@ -198,8 +200,6 @@
     "postgres-interval": ["postgres-interval@1.2.0", "", { "dependencies": { "xtend": "^4.0.0" } }, "sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ=="],
 
     "resolve-pkg-maps": ["resolve-pkg-maps@1.0.0", "", {}, "sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw=="],
-
-    "riser-bob": ["riser-bob@1.2.5", "", { "dependencies": { "@riser-bob/cookie": "0.1.1", "@socket.io/bun-engine": "^0.1.2", "socket.io": "^4.8.4" }, "peerDependencies": { "typescript": "^5" }, "bin": { "riser-bob": "dist/cli.js" } }, "sha512-VY0ouGOvXpS2R3pIMaJmoSyHVbFmHfOsNaKqJFYZZTAWpWu3QPf+RdJ6XqDNyiA7ZxN80QuCuWMu2+JpF5ilgQ=="],
 
     "safe-buffer": ["safe-buffer@5.2.1", "", {}, "sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ=="],
 
