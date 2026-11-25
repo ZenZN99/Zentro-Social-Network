@@ -1,5 +1,5 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
+import { Validator } from 'lykosjs'
 
 export const followsAPI = {
   toggle: {
@@ -12,7 +12,7 @@ export const followsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        followingId: rules(['required', 'string']),
+        followingId: Validator.text().required(),
       },
     },
     response: {
@@ -37,11 +37,11 @@ export const followsAPI = {
     tags: ['Follows'],
     request: {
       params: {
-        userId: rules(['required', 'string']),
+        userId: Validator.text().required(),
       },
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -63,11 +63,11 @@ export const followsAPI = {
     tags: ['Follows'],
     request: {
       params: {
-        userId: rules(['required', 'string']),
+        userId: Validator.text().required(),
       },
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -90,7 +90,7 @@ export const followsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        followingId: rules(['required', 'string']),
+        followingId: Validator.text().required(),
       },
     },
     response: {
@@ -111,7 +111,7 @@ export const followsAPI = {
     tags: ['Follows'],
     request: {
       params: {
-        userId: rules(['required', 'string']),
+        userId: Validator.text().required(),
       },
     },
     response: {
@@ -132,7 +132,7 @@ export const followsAPI = {
     tags: ['Follows'],
     request: {
       params: {
-        userId: rules(['required', 'string']),
+        userId: Validator.text().required(),
       },
     },
     response: {
