@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { HttpError } from 'riser-bob'
+import { HttpError } from 'lykosjs'
 import { UserSchema } from '../../modules/users/schemas/user.schema'
 import jwt from './jwt'
 import { database } from '../db/drizzle'
