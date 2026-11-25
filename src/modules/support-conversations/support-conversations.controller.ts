@@ -1,28 +1,29 @@
-import { SpongUnauthorizedException, type SpongHandler } from 'riser-bob'
+import { UnauthorizedException, type ContextHandler } from 'lykosjs'
 import type { SupportConversationsService } from './support-conversations.service'
 import { getPagination } from '../../utilities/pagination'
+import { verifyUser } from '../../config/token/verify-user'
 
 export class SupportConversationsController {
   constructor(private readonly supportConversationsService: SupportConversationsService) {}
 
-  readonly create: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly create: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
     const result = await this.supportConversationsService.create(userId)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result.success,
       message: result.message,
       data: result.data,
     })
   }
 
-  readonly findAll: SpongHandler = async (spongReq, spongRes) => {
-    const { page, limit, offset } = getPagination(spongReq)
+  readonly findAll: ContextHandler = async (ctx, reply) => {
+    const { page, limit, offset } = getPagination(ctx)
 
     const result = await this.supportConversationsService.findAll(page, limit, offset)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: {
         conversations: result.data,
@@ -31,23 +32,23 @@ export class SupportConversationsController {
     })
   }
 
-  readonly findMe: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly findMe: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
     const result = await this.supportConversationsService.findMe(userId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly findOne: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
-    const { conversationId } = spongReq.params
+  readonly findOne: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Support Conversation ID is required',
       })
@@ -55,25 +56,25 @@ export class SupportConversationsController {
 
     const result = await this.supportConversationsService.findOne(userId, conversationId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly toggle: SpongHandler = async (spongReq, spongRes) => {
-    if (!spongReq.user) {
-      throw new SpongUnauthorizedException({
+  readonly toggle: ContextHandler = async (ctx, reply) => {
+    if (!ctx.user) {
+     throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
     }
 
-    const adminId = spongReq.user.id
-    const { conversationId } = spongReq.params
+    const adminId = ctx.user.id
+    const { conversationId } = ctx.params
 
     if (!conversationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Support Conversation ID is required',
       })
@@ -81,10 +82,14 @@ export class SupportConversationsController {
 
     const result = await this.supportConversationsService.toggle(adminId, conversationId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
       data: result.data,
     })
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
