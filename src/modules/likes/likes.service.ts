@@ -1,4 +1,4 @@
-import type { database } from '../../config/db/drizzle'
+import type { Database, database } from '../../config/db/drizzle'
 import type { NotificationsService } from '../notifications/notifications.service'
 import { NotificationType } from '../notifications/schemas/enums/notification-type'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
@@ -10,15 +10,15 @@ import { PostSchema, type Post } from '../posts/schemas/post.schema'
 import { buildPagination } from '../../utilities/pagination'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import {
-  SpongBadRequestException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-  SpongUnauthorizedException,
-} from 'riser-bob'
+  BadRequestException,
+  InternalServerErrorException,
+  NotFoundException,
+  UnauthorizedException,
+} from 'lykosjs'
 
 export class LikesService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -39,7 +39,7 @@ export class LikesService {
     } as const
 
     if (!targetType || !Object.hasOwn(targetSchemas, targetType)) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Invalid target type',
       })
@@ -51,7 +51,7 @@ export class LikesService {
 
     switch (targetType) {
       case 'post': {
-        const [post] = await this.db
+        const [post] = await this.db.connection
           .select()
           .from(PostSchema)
           .where(eq(PostSchema.id, targetId))
@@ -61,7 +61,7 @@ export class LikesService {
       }
 
       case 'comment': {
-        const [comment] = await this.db
+        const [comment] = await this.db.connection
           .select()
           .from(CommentSchema)
           .where(eq(CommentSchema.id, targetId))
@@ -71,7 +71,7 @@ export class LikesService {
       }
 
       case 'reply': {
-        const [reply] = await this.db
+        const [reply] = await this.db.connection
           .select()
           .from(ReplySchema)
           .where(eq(ReplySchema.id, targetId))
@@ -82,13 +82,13 @@ export class LikesService {
     }
 
     if (!target) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: `${targetType} not found`,
       })
     }
 
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select({
         id: UserSchema.id,
         firstName: UserSchema.firstName,
@@ -99,22 +99,22 @@ export class LikesService {
       .limit(1)
 
     if (!user) {
-      throw new SpongUnauthorizedException({
+      throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
     }
 
-    const [existingLike] = await this.db
+    const [existingLike] = await this.db.connection
       .select()
       .from(LikeSchema)
       .where(and(eq(LikeSchema.userId, userId), eq(LikeSchema[field], targetId)))
       .limit(1)
 
     if (existingLike) {
-      await this.db.delete(LikeSchema).where(eq(LikeSchema.id, existingLike.id))
+      await this.db.connection.delete(LikeSchema).where(eq(LikeSchema.id, existingLike.id))
 
-      await this.db
+      await this.db.connection
         .update(schema)
         .set({ likesCount: sql`${schema.likesCount} - 1` })
         .where(eq(schema.id, targetId))
@@ -126,7 +126,7 @@ export class LikesService {
       }
     }
 
-    await this.db.insert(LikeSchema).values({
+    await this.db.connection.insert(LikeSchema).values({
       userId,
       postId: targetType === 'post' ? targetId : null,
       commentId: targetType === 'comment' ? targetId : null,
@@ -135,7 +135,7 @@ export class LikesService {
       updatedAt: new Date(),
     })
 
-    const [updatedTarget] = await this.db
+    const [updatedTarget] = await this.db.connection
       .update(schema)
       .set({
         likesCount: sql`${schema.likesCount} + 1`,
@@ -146,7 +146,7 @@ export class LikesService {
       })
 
     if (!updatedTarget) {
-      throw new SpongInternalServerErrorException({
+      throw new InternalServerErrorException({
         success: false,
         message: 'Failed to update likes count',
       })
@@ -205,7 +205,7 @@ export class LikesService {
     targetId: string,
   ) {
     if (!targetType || !['post', 'comment', 'reply'].includes(targetType)) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Invalid target type',
       })
@@ -214,7 +214,7 @@ export class LikesService {
     const field =
       targetType === 'post' ? 'postId' : targetType === 'comment' ? 'commentId' : 'replyId'
 
-    const likes = await this.db
+    const likes = await this.db.connection
       .select({
         like: LikeSchema,
         user: {
@@ -231,7 +231,7 @@ export class LikesService {
       .limit(limit)
       .offset(offset)
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({ total: count() })
       .from(LikeSchema)
       .where(eq(LikeSchema[field], targetId))
@@ -252,7 +252,7 @@ export class LikesService {
     offset = (page - 1) * limit,
   ) {
     if (!targetType || !['post', 'comment', 'reply'].includes(targetType)) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Invalid target type',
       })
@@ -261,7 +261,7 @@ export class LikesService {
     const field =
       targetType === 'post' ? 'postId' : targetType === 'comment' ? 'commentId' : 'replyId'
 
-    const likes = await this.db
+    const likes = await this.db.connection
       .select({
         like: LikeSchema,
         user: {
@@ -278,7 +278,7 @@ export class LikesService {
       .limit(limit)
       .offset(offset)
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({ total: count() })
       .from(LikeSchema)
       .where(and(eq(LikeSchema[field], targetId), eq(LikeSchema.userId, userId)))
@@ -292,7 +292,7 @@ export class LikesService {
 
   async count(targetType: string, targetId: string) {
     if (!targetType || !['post', 'comment', 'reply'].includes(targetType)) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Invalid target type',
       })
@@ -302,7 +302,7 @@ export class LikesService {
 
     switch (targetType) {
       case 'post': {
-        const [post] = await this.db
+        const [post] = await this.db.connection
           .select({
             id: PostSchema.id,
             likesCount: PostSchema.likesCount,
@@ -316,7 +316,7 @@ export class LikesService {
       }
 
       case 'comment': {
-        const [comment] = await this.db
+        const [comment] = await this.db.connection
           .select({
             id: CommentSchema.id,
             likesCount: CommentSchema.likesCount,
@@ -330,7 +330,7 @@ export class LikesService {
       }
 
       case 'reply': {
-        const [reply] = await this.db
+        const [reply] = await this.db.connection
           .select({
             id: ReplySchema.id,
             likesCount: ReplySchema.likesCount,
@@ -345,7 +345,7 @@ export class LikesService {
     }
 
     if (!target) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: `${targetType} not found`,
       })
@@ -363,7 +363,7 @@ export class LikesService {
 
   async isLiked(userId: string, targetType: string, targetId: string) {
     if (!targetType || !['post', 'comment', 'reply'].includes(targetType)) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Invalid target type',
       })
@@ -372,7 +372,7 @@ export class LikesService {
     const field =
       targetType === 'post' ? 'postId' : targetType === 'comment' ? 'commentId' : 'replyId'
 
-    const [like] = await this.db
+    const [like] = await this.db.connection
       .select({
         like: LikeSchema,
         user: {
