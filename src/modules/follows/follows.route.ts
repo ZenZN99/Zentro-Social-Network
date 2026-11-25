@@ -1,11 +1,10 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { FollowsController } from './follows.controller'
 import type { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 
 export class FollowsRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: FollowsController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly userActiveMiddleware: UserActiveMiddleware,
@@ -13,18 +12,18 @@ export class FollowsRouter {
 
   register(): void {
     // Public routes
-    this.bob.spongGroup('/api/follows', (group) => {
-      group.spongGet('/followers/:userId', this.controller.findFollowers)
-      group.spongGet('/following/:userId', this.controller.findFollowing)
-      group.spongGet('/count-followers/:userId', this.controller.countFollowers)
-      group.spongGet('/count-following/:userId', this.controller.countFollowing)
+    this.app.group('/api/follows', (guest) => {
+      guest.GET('/followers/:userId', this.controller.findFollowers)
+      guest.GET('/following/:userId', this.controller.findFollowing)
+      guest.GET('/count-followers/:userId', this.controller.countFollowers)
+      guest.GET('/count-following/:userId', this.controller.countFollowing)
 
       // Protected routes
-      group.spongGroup(
+      guest.group(
         '/',
         (group) => {
-          group.spongPost('/:followingId', this.controller.toggle)
-          group.spongGet('/is-following/:followingId', this.controller.isFollowing)
+          group.POST('/:followingId', this.controller.toggle)
+          group.GET('/is-following/:followingId', this.controller.isFollowing)
         },
         this.authMiddleware.middleware,
         this.userActiveMiddleware.middleware,
