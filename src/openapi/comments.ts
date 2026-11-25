@@ -1,7 +1,7 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
 import { UpdateCommentRule } from '../modules/comments/rules/update'
 import { CreateCommentRule } from '../modules/comments/rules/create'
+import { Validator } from 'lykosjs'
 
 export const commentsAPI = {
   create: {
@@ -14,7 +14,7 @@ export const commentsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        postId: rules(['required', 'string']),
+        postId: Validator.text().required(),
       },
       body: CreateCommentRule,
     },
@@ -37,11 +37,11 @@ export const commentsAPI = {
     tags: ['Comments'],
     request: {
       params: {
-        postId: rules(['required', 'string']),
+        postId: Validator.text().required(),
       },
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -64,8 +64,8 @@ export const commentsAPI = {
     security: ['CookieAuth'],
     request: {
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -84,7 +84,7 @@ export const commentsAPI = {
     tags: ['Comments'],
     request: {
       params: {
-        commentId: rules(['required', 'string']),
+        commentId: Validator.text().required(),
       },
     },
     response: {
@@ -107,7 +107,7 @@ export const commentsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        commentId: rules(['required', 'string']),
+        commentId: Validator.text().required(),
       },
       body: UpdateCommentRule,
     },
@@ -134,7 +134,7 @@ export const commentsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        commentId: rules(['required', 'string']),
+        commentId: Validator.text().required(),
       },
     },
     response: {
