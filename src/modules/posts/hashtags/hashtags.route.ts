@@ -1,13 +1,13 @@
-import type { RiserBob } from 'riser-bob'
+import type { Lykos } from 'lykosjs'
 import type { HashtagsController } from './hashtags.controller'
 
 export class HashtagsRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: HashtagsController,
   ) {}
 
   register(): void {
-    this.bob.spongGet('/api/hashtags', this.controller.findTrending)
+    this.app.GET('/api/hashtags', this.controller.findTrending)
   }
 }
