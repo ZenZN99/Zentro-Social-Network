@@ -1,7 +1,7 @@
-import { rules } from 'riser-bob'
+import { Validator } from 'lykosjs'
 import { CreatePostRule } from '../modules/posts/rules/create'
 import { UpdatePostRule } from '../modules/posts/rules/update'
-import type { OpenAPIRoute } from '@riser-bob/openapi'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
 
 export const postsAPI = {
   create: {
@@ -41,8 +41,8 @@ export const postsAPI = {
     tags: ['Posts'],
     request: {
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -62,8 +62,8 @@ export const postsAPI = {
     security: ['CookieAuth'],
     request: {
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -82,11 +82,11 @@ export const postsAPI = {
     tags: ['Posts'],
     request: {
       params: {
-        userId: rules(['required', 'string']),
+        userId: Validator.text().required(),
       },
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -108,7 +108,7 @@ export const postsAPI = {
     tags: ['Posts'],
     request: {
       params: {
-        postId: rules(['required', 'string']),
+        postId: Validator.text().required(),
       },
     },
     response: {
@@ -131,7 +131,7 @@ export const postsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        postId: rules(['required', 'string']),
+        postId: Validator.text().required(),
       },
       body: UpdatePostRule,
       contentType: 'multipart/form-data',
@@ -162,7 +162,7 @@ export const postsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        postId: rules(['required', 'string']),
+        postId: Validator.text().required(),
       },
     },
     response: {
