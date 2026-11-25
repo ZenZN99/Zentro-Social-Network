@@ -1,5 +1,5 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
+import { Validator } from 'lykosjs'
 
 export const likesAPI = {
   toggle: {
@@ -12,8 +12,8 @@ export const likesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        targetType: rules(['required', 'string']),
-        targetId: rules(['required', 'string']),
+        targetType: Validator.text().required(),
+        targetId: Validator.text().required(),
       },
     },
     response: {
@@ -44,12 +44,12 @@ export const likesAPI = {
     tags: ['Likes'],
     request: {
       params: {
-        targetType: rules(['required', 'string']),
-        targetId: rules(['required', 'string']),
+        targetType: Validator.text().required(),
+        targetId: Validator.text().required(),
       },
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -72,12 +72,12 @@ export const likesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        targetType: rules(['required', 'string']),
-        targetId: rules(['required', 'string']),
+        targetType: Validator.text().required(),
+        targetId: Validator.text().required(),
       },
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
     response: {
@@ -98,8 +98,8 @@ export const likesAPI = {
     tags: ['Likes'],
     request: {
       params: {
-        targetType: rules(['required', 'string']),
-        targetId: rules(['required', 'string']),
+        targetType: Validator.text().required(),
+        targetId: Validator.text().required(),
       },
     },
     response: {
@@ -125,8 +125,8 @@ export const likesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        targetType: rules(['required', 'string']),
-        targetId: rules(['required', 'string']),
+        targetType: Validator.text().required(),
+        targetId: Validator.text().required(),
       },
     },
     response: {
