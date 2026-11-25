@@ -1,45 +1,72 @@
-import type { SpongHandler } from 'riser-bob'
 import type { AuthService, LoginBody, RegisterBody } from './auth.service'
+import { Validator, type ContextHandler } from 'lykosjs'
+import { RegisterAuthRule } from './rules/register'
+import { LoginAuthRule } from './rules/login'
+import { verifyUser } from '../../config/token/verify-user'
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  readonly register: SpongHandler = async (spongReq, spongRes) => {
-    const body = await spongReq.json<RegisterBody>()
+  readonly register: ContextHandler = async (ctx, reply) => {
+    const body = await ctx.json<RegisterBody>()
 
-    const result = await this.authService.register(body, spongReq)
+    const validation = Validator.validate({ ...body }, RegisterAuthRule)
 
-    return result
-  }
+    if (!validation.valid) {
+      return reply.UnprocessableContent({
+        success: false,
+        message: 'validation failed',
+        errors: validation.errors,
+      })
+    }
 
-  readonly login: SpongHandler = async (spongReq, spongRes) => {
-    const body = await spongReq.json<LoginBody>()
-
-    const result = await this.authService.login(body, spongReq)
-
-    return result
-  }
-
-  readonly logout: SpongHandler = async (spongReq, spongRes) => {
-    const result = await this.authService.logout(spongReq)
+    const result = await this.authService.register(validation.data, ctx)
 
     return result
   }
 
-  readonly me: SpongHandler = async (spongReq, spongRes) => {
-    const currentUser = spongReq.user!
+  readonly login: ContextHandler = async (ctx, reply) => {
+    const body = await ctx.json<LoginBody>()
+
+    const validation = Validator.validate({ ...body }, LoginAuthRule)
+
+    if (!validation.valid) {
+      return reply.UnprocessableContent({
+        success: false,
+        message: 'validation failed',
+        errors: validation.errors,
+      })
+    }
+
+    const result = await this.authService.login(validation.data, ctx)
+
+    return result
+  }
+
+  readonly logout: ContextHandler = async (ctx, reply) => {
+    const result = await this.authService.logout(ctx)
+
+    return result
+  }
+
+  readonly me: ContextHandler = async (ctx, reply) => {
+    const currentUser = ctx.user!
 
     const result = await this.authService.me(currentUser)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly refreshToken: SpongHandler = async (spongReq, spongRes) => {
-    const result = await this.authService.refreshToken(spongReq)
+  readonly refreshToken: ContextHandler = async (ctx, reply) => {
+    const result = await this.authService.refreshToken(ctx)
 
     return result
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
