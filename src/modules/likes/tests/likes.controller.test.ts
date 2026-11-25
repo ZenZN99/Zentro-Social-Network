@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
-import type { SpongHandler } from 'riser-bob'
 import type { LikesService } from '../likes.service'
+import type { ContextHandler } from 'lykosjs'
 
 const getPagination = mock((_req: HandlerRequest) => ({
   page: 1,
@@ -17,8 +17,8 @@ mock.module('../../../utilities/pagination', () => ({
 
 const { LikesController } = await import('../likes.controller')
 
-type HandlerRequest = Parameters<SpongHandler>[0]
-type HandlerResponse = Parameters<SpongHandler>[1]
+type HandlerRequest = Parameters<ContextHandler>[0]
+type HandlerResponse = Parameters<ContextHandler>[1]
 
 const USER_ID = 'user-1'
 const TARGET_ID = 'target-1'
@@ -41,11 +41,11 @@ function makeRequest(overrides: Record<string, unknown> = {}) {
 
 function makeResponse() {
   return {
-    SpongOK: mock((_payload: unknown) => undefined),
-    SpongBadRequest: mock((_payload: unknown) => undefined),
+    OK: mock((_payload: unknown) => undefined),
+    BadRequest: mock((_payload: unknown) => undefined),
   } as unknown as HandlerResponse & {
-    SpongOK: ReturnType<typeof mock>
-    SpongBadRequest: ReturnType<typeof mock>
+    OK: ReturnType<typeof mock>
+    BadRequest: ReturnType<typeof mock>
   }
 }
 
@@ -140,7 +140,7 @@ describe('LikesController', () => {
 
       await controller.toggle(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledWith({
+      expect(res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Target type and Target ID is required',
       })
@@ -156,7 +156,7 @@ describe('LikesController', () => {
 
       await controller.toggle(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledWith({
+      expect(res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Target type and Target ID is required',
       })
@@ -172,7 +172,7 @@ describe('LikesController', () => {
 
       await controller.toggle(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
+      expect(res.BadRequest).toHaveBeenCalledTimes(1)
       expect(dependencies.likesService.toggle).not.toHaveBeenCalled()
     })
 
@@ -185,13 +185,13 @@ describe('LikesController', () => {
       expect(dependencies.likesService.toggle).toHaveBeenCalledWith(USER_ID, TARGET_TYPE, TARGET_ID)
     })
 
-    test('returns SpongOK with the service result', async () => {
+    test('returns OK with the service result', async () => {
       const req = makeRequest()
       const res = makeResponse()
 
       await controller.toggle(req, res)
 
-      expect(res.SpongOK).toHaveBeenCalledWith({
+      expect(res.OK).toHaveBeenCalledWith({
         success: true,
         message: 'Liked successfully',
         data: { isLiked: true },
@@ -210,7 +210,7 @@ describe('LikesController', () => {
 
       await controller.toggle(req, res)
 
-      expect(res.SpongOK).toHaveBeenCalledWith({
+      expect(res.OK).toHaveBeenCalledWith({
         success: true,
         message: 'Like removed successfully',
         data: { isLiked: false },
@@ -227,7 +227,7 @@ describe('LikesController', () => {
 
       await expect(controller.toggle(req, res)).rejects.toBe(expectedError)
 
-      expect(res.SpongOK).not.toHaveBeenCalled()
+      expect(res.OK).not.toHaveBeenCalled()
     })
   })
 
@@ -240,7 +240,7 @@ describe('LikesController', () => {
 
       await controller.findAll(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledWith({
+      expect(res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Target type and Target ID is required',
       })
@@ -257,7 +257,7 @@ describe('LikesController', () => {
 
       await controller.findAll(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
+      expect(res.BadRequest).toHaveBeenCalledTimes(1)
       expect(dependencies.likesService.findAll).not.toHaveBeenCalled()
     })
 
@@ -291,13 +291,13 @@ describe('LikesController', () => {
       )
     })
 
-    test('returns SpongOK with likes data', async () => {
+    test('returns OK with likes data', async () => {
       const req = makeRequest()
       const res = makeResponse()
 
       await controller.findAll(req, res)
 
-      expect(res.SpongOK).toHaveBeenCalledWith({
+      expect(res.OK).toHaveBeenCalledWith({
         success: true,
         data: [{ id: 'like-1' }],
       })
@@ -309,7 +309,7 @@ describe('LikesController', () => {
 
       await controller.findAll(req, res)
 
-      const payload = res.SpongOK.mock.calls[0]?.[0]
+      const payload = res.OK.mock.calls[0]?.[0]
 
       expect(payload).not.toHaveProperty('pagination')
     })
@@ -324,7 +324,7 @@ describe('LikesController', () => {
 
       await expect(controller.findAll(req, res)).rejects.toBe(expectedError)
 
-      expect(res.SpongOK).not.toHaveBeenCalled()
+      expect(res.OK).not.toHaveBeenCalled()
     })
   })
 
@@ -337,7 +337,7 @@ describe('LikesController', () => {
 
       await controller.findMe(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
+      expect(res.BadRequest).toHaveBeenCalledTimes(1)
       expect(dependencies.likesService.findMe).not.toHaveBeenCalled()
     })
 
@@ -349,7 +349,7 @@ describe('LikesController', () => {
 
       await controller.findMe(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
+      expect(res.BadRequest).toHaveBeenCalledTimes(1)
       expect(dependencies.likesService.findMe).not.toHaveBeenCalled()
     })
 
@@ -406,13 +406,13 @@ describe('LikesController', () => {
       )
     })
 
-    test('returns SpongOK with likes data', async () => {
+    test('returns OK with likes data', async () => {
       const req = makeRequest()
       const res = makeResponse()
 
       await controller.findMe(req, res)
 
-      expect(res.SpongOK).toHaveBeenCalledWith({
+      expect(res.OK).toHaveBeenCalledWith({
         success: true,
         data: [{ id: 'like-1' }],
       })
@@ -424,7 +424,7 @@ describe('LikesController', () => {
 
       await controller.findMe(req, res)
 
-      const payload = res.SpongOK.mock.calls[0]?.[0]
+      const payload = res.OK.mock.calls[0]?.[0]
 
       expect(payload).not.toHaveProperty('pagination')
     })
@@ -439,7 +439,7 @@ describe('LikesController', () => {
 
       await expect(controller.findMe(req, res)).rejects.toBe(expectedError)
 
-      expect(res.SpongOK).not.toHaveBeenCalled()
+      expect(res.OK).not.toHaveBeenCalled()
     })
   })
 
@@ -452,7 +452,7 @@ describe('LikesController', () => {
 
       await controller.count(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledWith({
+      expect(res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Target type and Target ID is required',
       })
@@ -468,7 +468,7 @@ describe('LikesController', () => {
 
       await controller.count(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
+      expect(res.BadRequest).toHaveBeenCalledTimes(1)
       expect(dependencies.likesService.count).not.toHaveBeenCalled()
     })
 
@@ -481,13 +481,13 @@ describe('LikesController', () => {
       expect(dependencies.likesService.count).toHaveBeenCalledWith(TARGET_TYPE, TARGET_ID)
     })
 
-    test('returns SpongOK with count data', async () => {
+    test('returns OK with count data', async () => {
       const req = makeRequest()
       const res = makeResponse()
 
       await controller.count(req, res)
 
-      expect(res.SpongOK).toHaveBeenCalledWith({
+      expect(res.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           targetType: TARGET_TYPE,
@@ -518,7 +518,7 @@ describe('LikesController', () => {
 
       await expect(controller.count(req, res)).rejects.toBe(expectedError)
 
-      expect(res.SpongOK).not.toHaveBeenCalled()
+      expect(res.OK).not.toHaveBeenCalled()
     })
   })
 
@@ -531,7 +531,7 @@ describe('LikesController', () => {
 
       await controller.isLiked(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
+      expect(res.BadRequest).toHaveBeenCalledTimes(1)
       expect(dependencies.likesService.isLiked).not.toHaveBeenCalled()
     })
 
@@ -543,7 +543,7 @@ describe('LikesController', () => {
 
       await controller.isLiked(req, res)
 
-      expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
+      expect(res.BadRequest).toHaveBeenCalledTimes(1)
       expect(dependencies.likesService.isLiked).not.toHaveBeenCalled()
     })
 
@@ -560,19 +560,19 @@ describe('LikesController', () => {
       )
     })
 
-    test('returns SpongOK when the target is liked', async () => {
+    test('returns OK when the target is liked', async () => {
       const req = makeRequest()
       const res = makeResponse()
 
       await controller.isLiked(req, res)
 
-      expect(res.SpongOK).toHaveBeenCalledWith({
+      expect(res.OK).toHaveBeenCalledWith({
         success: true,
         data: { isLiked: true },
       })
     })
 
-    test('returns SpongOK when the target is not liked', async () => {
+    test('returns OK when the target is not liked', async () => {
       dependencies.likesService.isLiked.mockResolvedValue({
         success: true,
         data: { isLiked: false },
@@ -583,7 +583,7 @@ describe('LikesController', () => {
 
       await controller.isLiked(req, res)
 
-      expect(res.SpongOK).toHaveBeenCalledWith({
+      expect(res.OK).toHaveBeenCalledWith({
         success: true,
         data: { isLiked: false },
       })
@@ -599,7 +599,7 @@ describe('LikesController', () => {
 
       await expect(controller.isLiked(req, res)).rejects.toBe(expectedError)
 
-      expect(res.SpongOK).not.toHaveBeenCalled()
+      expect(res.OK).not.toHaveBeenCalled()
     })
   })
 })
