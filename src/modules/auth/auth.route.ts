@@ -1,27 +1,26 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { AuthController } from './auth.controller'
 
 export class AuthRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: AuthController,
     private readonly authMiddleware: AuthMiddleware,
   ) {}
 
   register(): void {
     // Public routes
-    this.bob.spongGroup('/api/auth', (group) => {
-      group.spongPost('/register', this.controller.register)
-      group.spongPost('/login', this.controller.login)
-      group.spongPost('/refreshToken', this.controller.refreshToken)
+    this.app.group('/api/auth', (guest) => {
+      guest.POST('/register', this.controller.register)
+      guest.POST('/login', this.controller.login)
+      guest.POST('/refreshToken', this.controller.refreshToken)
 
       // Protected routes
-      group.spongGroup(
+      guest.group(
         '/',
-        (group) => {
-          group.spongPost('/logout', this.controller.logout)
-          group.spongGet('/me', this.controller.me)
+        (auth) => {
+          auth.POST('/logout', this.controller.logout)
+          auth.GET('/me', this.controller.me)
         },
         this.authMiddleware.middleware,
       )
