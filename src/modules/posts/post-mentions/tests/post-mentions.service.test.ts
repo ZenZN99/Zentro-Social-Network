@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import type { database } from '../../../../config/db/drizzle'
+import type { Database, database } from '../../../../config/db/drizzle'
 import { PostMentionsService } from '../post-mentions.service'
 
 /* -------------------------------------------------------------------------- */
@@ -110,7 +110,7 @@ beforeEach(() => {
   db = createFakeDb()
   transaction = createFakeDb()
 
-  service = new PostMentionsService(db as unknown as typeof database)
+  service = new PostMentionsService({ connection: db } as unknown as Database)
 })
 
 const asTransaction = (fake: FakeDb): Transaction => fake as unknown as Transaction
