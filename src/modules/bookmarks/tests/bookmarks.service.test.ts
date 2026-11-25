@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
-import type { database } from '../../../config/db/drizzle'
+import type { Database, database } from '../../../config/db/drizzle'
 import { BookmarksService } from '../bookmarks.service'
 
 type Outcome = { value: unknown } | { error: Error }
@@ -102,7 +102,7 @@ const createFakeDb = () => {
 
   return {
     db,
-    service: new BookmarksService(db as unknown as typeof database),
+    service: new BookmarksService({connection: db} as unknown as Database),
   }
 }
 
