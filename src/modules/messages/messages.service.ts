@@ -1,6 +1,6 @@
 import { and, asc, count, eq, getTableColumns, ne, or } from 'drizzle-orm'
 import cloudinary from '../../config/cloudinary/cloudinary'
-import type { database } from '../../config/db/drizzle'
+import type { Database, database } from '../../config/db/drizzle'
 import { UserSchema } from '../users/schemas/user.schema'
 import { MessageSchema } from './schemas/message.schema'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
@@ -10,15 +10,15 @@ import type { NotificationsService } from '../notifications/notifications.servic
 import { NotificationType } from '../notifications/schemas/enums/notification-type'
 import type { MessagesGateway } from '../../config/gateways/messages.gateway'
 import {
-  SpongBadRequestException,
-  SpongForbiddenException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-} from 'riser-bob'
+  BadRequestException,
+  ForbiddenException,
+  InternalServerErrorException,
+  NotFoundException,
+} from 'lykosjs'
 
 export class MessagesService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly messageGateway: MessagesGateway,
     private readonly notificationsService: NotificationsService,
   ) {}
@@ -38,34 +38,34 @@ export class MessagesService {
     const files = formData.getAll('files').filter((file): file is File => file instanceof File)
 
     if (!text && files.length === 0) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Message content or attachments are required',
       })
     }
 
     if (files.length > 5) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Maximum 5 attachments are allowed',
       })
     }
 
     if (senderId === receiverId) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'You cannot send a message to yourself',
       })
     }
 
-    const [receiver] = await this.db
+    const [receiver] = await this.db.connection
       .select({ id: UserSchema.id })
       .from(UserSchema)
       .where(eq(UserSchema.id, receiverId))
       .limit(1)
 
     if (!receiver) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Message receiver not found',
       })
@@ -95,7 +95,7 @@ export class MessagesService {
 
       const lastMessage = text ?? (attachments.length > 0 ? 'Attachment' : '')
 
-      const result = await this.db.transaction(async (tx) => {
+      const result = await this.db.connection.transaction(async (tx) => {
         let [conversation] = await tx
           .select()
           .from(ConversationSchema)
@@ -151,7 +151,7 @@ export class MessagesService {
           .returning()
 
         if (!message) {
-          throw new SpongInternalServerErrorException({
+          throw new InternalServerErrorException({
             success: false,
             message: 'Failed to create message',
           })
@@ -185,7 +185,7 @@ export class MessagesService {
       })
 
       if (!result) {
-        throw new SpongInternalServerErrorException({
+        throw new InternalServerErrorException({
           success: false,
           message: 'Failed to create message',
         })
@@ -272,7 +272,7 @@ export class MessagesService {
   }
 
   async findAll(userId: string, conversationId: string) {
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select({ id: ConversationSchema.id })
       .from(ConversationSchema)
       .where(
@@ -284,13 +284,13 @@ export class MessagesService {
       .limit(1)
 
     if (!conversation) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Conversation not found',
       })
     }
 
-    const result = await this.db
+    const result = await this.db.connection
       .select({
         ...getTableColumns(MessageSchema),
 
@@ -326,7 +326,7 @@ export class MessagesService {
   }
 
   async markAllAsRead(userId: string, conversationId: string) {
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select({ id: ConversationSchema.id })
       .from(ConversationSchema)
       .where(
@@ -338,13 +338,13 @@ export class MessagesService {
       .limit(1)
 
     if (!conversation) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Conversation not found',
       })
     }
 
-    const updatedMessages = await this.db
+    const updatedMessages = await this.db.connection
       .update(MessageSchema)
       .set({
         isRead: true,
@@ -369,7 +369,7 @@ export class MessagesService {
   }
 
   async findUnreadCount(userId: string, conversationId: string) {
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select({ id: ConversationSchema.id })
       .from(ConversationSchema)
       .where(
@@ -381,13 +381,13 @@ export class MessagesService {
       .limit(1)
 
     if (!conversation) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Conversation not found',
       })
     }
 
-    const [result] = await this.db
+    const [result] = await this.db.connection
       .select({
         unreadCount: count(),
       })
@@ -406,34 +406,34 @@ export class MessagesService {
     }
   }
   async delete(userId: string, messageId: string) {
-    const [message] = await this.db
+    const [message] = await this.db.connection
       .select()
       .from(MessageSchema)
       .where(eq(MessageSchema.id, messageId))
       .limit(1)
 
     if (!message) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Message not found',
       })
     }
 
     if (message.userId !== userId) {
-      throw new SpongForbiddenException({
+      throw new ForbiddenException({
         success: false,
         message: 'Forbidden',
       })
     }
 
-    const [conversation] = await this.db
+    const [conversation] = await this.db.connection
       .select()
       .from(ConversationSchema)
       .where(eq(ConversationSchema.id, message.conversationId))
       .limit(1)
 
     if (!conversation) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Conversation not found',
       })
@@ -442,7 +442,7 @@ export class MessagesService {
     const receiverId =
       conversation.senderId === userId ? conversation.receiverId : conversation.senderId
 
-    await this.db.delete(MessageSchema).where(eq(MessageSchema.id, messageId))
+    await this.db.connection.delete(MessageSchema).where(eq(MessageSchema.id, messageId))
 
     this.messageGateway.sendMessageDeleted({
       receiverId,
