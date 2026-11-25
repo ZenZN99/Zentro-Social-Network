@@ -1,11 +1,11 @@
-import { defineSchema, rules } from 'riser-bob'
+import { defineSchema, Validator } from 'lykosjs'
 import { VisibilityStatus } from '../schemas/enums/visibility-status'
 
 export const CreatePostRule = defineSchema({
-  content: rules(['required', 'string', 'maxLength:300']),
-  visibility: rules(['required', `enum:${Object.values(VisibilityStatus).join(',')}`]),
-  isPin: rules(['required', 'boolean']),
-  mentions: rules(['nullable', 'array', 'maxItems:10']),
-  hashtags: rules(['nullable', 'array', 'maxItems:10']),
-  quotedPostId: ['nullable', 'string'],
+  content: Validator.string(3, 300).required(),
+  visibility: Validator.enum(VisibilityStatus).required(),
+  isPin: Validator.boolean().required(),
+  mentions: Validator.array(1, 10).optional(),
+  hashtags: Validator.array(1, 10).optional(),
+  quotedPostId: Validator.text().optional(),
 })
