@@ -1,6 +1,6 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import { Validator } from 'lykosjs'
 import { UpdateUserVerificationRule } from '../modules/user-verifications/rules/update'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
 
 export const userVerficationsAPI = {
   create: {
@@ -14,8 +14,8 @@ export const userVerficationsAPI = {
     request: {
       contentType: 'multipart/form-data',
       body: {
-        profileImage: rules(['required', 'string']),
-        identityDocument: rules(['required', 'string']),
+        profileImage: Validator.text().required(),
+        identityDocument: Validator.text().required(),
       },
     },
     response: {
@@ -40,9 +40,9 @@ export const userVerficationsAPI = {
     security: ['CookieAuth'],
     request: {
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
-        offset: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit:  Validator.text().optional(),
+        offset:  Validator.text().optional(),
       },
     },
     response: {
@@ -64,7 +64,7 @@ export const userVerficationsAPI = {
     request: {
       contentType: 'application/json',
       params: {
-        verificationId: rules(['required', 'string']),
+        verificationId:  Validator.text().required(),
       },
       body: UpdateUserVerificationRule,
     },
