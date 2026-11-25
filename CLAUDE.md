@@ -19,16 +19,16 @@ The project prioritizes:
 
 ## Technology Stack
 
-| Technology     | Purpose                                |
-| -------------- | -------------------------------------- |
-| Bun            | JavaScript runtime and package manager |
-| TypeScript     | Application development                |
-| RiserBob       | HTTP backend framework                 |
-| PostgreSQL     | Relational database                    |
-| Drizzle ORM    | Database queries and schema management |
-| @riser-bob/jwt | JWT authentication                     |
-| Bun Test       | Unit testing                           |
-| Next.js        | Frontend application                   |
+| Technology | Purpose |
+|---|---|
+| Bun | JavaScript runtime and package manager |
+| TypeScript | Application development |
+| LykosJS | HTTP backend framework |
+| PostgreSQL | Relational database |
+| Drizzle ORM | Database queries and schema management |
+| @riser-bob/jwt | JWT authentication |
+| Bun Test | Unit testing |
+| Next.js | Frontend application |
 
 Always inspect the actual project dependencies and configuration before assuming a package or feature is available.
 
@@ -120,14 +120,9 @@ Never concatenate untrusted input into SQL statements.
 
 ### API Design
 
-Follow existing RiserBob conventions.
+Follow existing LykosJS conventions.
 
-Existing project patterns include:
-
-- `SpongRequest`
-- `SpongOK`
-- `SpongBadRequest`
-- RiserBob exception classes.
+Inspect the actual framework API and project implementation before assuming available request, response, or exception methods.
 
 Preserve established response structures.
 
