@@ -1,6 +1,6 @@
 {
-  "name": "my-riser-bob-app",
-  "version": "1.1.0",
+  "name": "backend",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,17 +10,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@riser-bob/cloudinary": "^1.0.0",
-    "@riser-bob/cookie": "^0.1.1",
-    "@riser-bob/jwt": "^1.0.0",
-    "@riser-bob/openapi": "^0.1.0",
+    "@lykosjs/cloudinary": "^1.0.0",
+    "@lykosjs/cookie": "^1.0.0",
+    "@lykosjs/jwt": "^1.0.0",
+    "@lykosjs/openapi": "^1.0.0",
     "@socket.io/bun-engine": "^0.1.2",
     "@types/pg": "^8.23.1",
     "bcryptjs": "^3.0.3",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.4",
+    "lykosjs": "^1.0.0",
     "pg": "^8.23.1",
-    "riser-bob": "^1.2.5",
     "socket.io": "^4.8.4"
   },
   "devDependencies": {
