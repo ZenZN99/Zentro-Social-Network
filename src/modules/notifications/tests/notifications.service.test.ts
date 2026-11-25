@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
-import type { database } from '../../../config/db/drizzle'
+import type { Database, database } from '../../../config/db/drizzle'
 import type { NotificationsGateway } from '../../../config/gateways/notifications.gateway'
 import type { Notification } from '../schemas/notification.schema'
 import { NotificationsService } from '../notifications.service'
-import { SpongInternalServerErrorException, SpongNotFoundException } from 'riser-bob'
+import { InternalServerErrorException, NotFoundException } from 'lykosjs'
 
 type Outcome = { value: unknown } | { error: Error }
 
@@ -178,7 +178,7 @@ function setup() {
   const gateway = createGateway()
 
   const service = new NotificationsService(
-    db as unknown as typeof database,
+    { connection: db } as unknown as Database,
     gateway as unknown as NotificationsGateway,
   )
 
@@ -242,7 +242,7 @@ describe('NotificationsService.create', () => {
     db.queueInsert([])
 
     await expect(service.create(notification())).rejects.toBeInstanceOf(
-      SpongInternalServerErrorException,
+      InternalServerErrorException,
     )
 
     expect(db.rootCalls.map((call) => call.method)).toEqual(['insert'])
@@ -267,7 +267,7 @@ describe('NotificationsService.create', () => {
     db.queueSelect([])
 
     await expect(service.create(notification())).rejects.toBeInstanceOf(
-      SpongInternalServerErrorException,
+      InternalServerErrorException,
     )
 
     expect(db.rootCalls.map((call) => call.method)).toEqual(['insert', 'select'])
@@ -334,7 +334,7 @@ describe('NotificationsService.create', () => {
     db.queueSelect([])
 
     await expect(service.create(notification())).rejects.toBeInstanceOf(
-      SpongInternalServerErrorException,
+      InternalServerErrorException,
     )
 
     expect(gateway.sendNotification).not.toHaveBeenCalled()
@@ -522,7 +522,7 @@ describe('NotificationsService.markAsRead', () => {
     db.queueSelect([])
 
     await expect(service.markAsRead('receiver-1', 'missing-id')).rejects.toBeInstanceOf(
-      SpongNotFoundException,
+      NotFoundException,
     )
 
     expect(db.rootCalls.map((call) => call.method)).toEqual(['select'])
@@ -536,7 +536,7 @@ describe('NotificationsService.markAsRead', () => {
     db.queueSelect([])
 
     await expect(service.markAsRead('attacker-id', 'victim-notification')).rejects.toBeInstanceOf(
-      SpongNotFoundException,
+      NotFoundException,
     )
 
     expect(db.rootCalls.map((call) => call.method)).toEqual(['select'])
@@ -687,7 +687,7 @@ describe('NotificationsService.delete', () => {
     db.queueSelect([])
 
     await expect(service.delete('receiver-1', 'missing-id')).rejects.toBeInstanceOf(
-      SpongNotFoundException,
+      NotFoundException,
     )
 
     expect(db.rootCalls.map((call) => call.method)).toEqual(['select'])
@@ -699,7 +699,7 @@ describe('NotificationsService.delete', () => {
     db.queueSelect([])
 
     await expect(service.delete('attacker-id', 'victim-notification')).rejects.toBeInstanceOf(
-      SpongNotFoundException,
+      NotFoundException,
     )
 
     expect(db.rootCalls.some((call) => call.method === 'delete')).toBe(false)
