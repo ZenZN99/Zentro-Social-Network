@@ -41,11 +41,11 @@ const makeRequest = (overrides: Record<string, unknown> = {}) => ({
 })
 
 const makeResponse = () => ({
-  SpongOK: mock((payload: unknown) => ({
+  OK: mock((payload: unknown) => ({
     status: 200,
     payload,
   })),
-  SpongBadRequest: mock((payload: unknown) => ({
+  BadRequest: mock((payload: unknown) => ({
     status: 400,
     payload,
   })),
@@ -156,7 +156,7 @@ describe('PostRepostsController.repost', () => {
     expect(repost).toHaveBeenCalledTimes(1)
     expect(repost).toHaveBeenCalledWith(USER_ID, POST_ID)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       message: 'Post reposted successfully',
     })
@@ -168,14 +168,14 @@ describe('PostRepostsController.repost', () => {
 
     await invokeHandler(controller.repost, req, res)
 
-    expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
-    expect(res.SpongBadRequest).toHaveBeenCalledWith({
+    expect(res.BadRequest).toHaveBeenCalledTimes(1)
+    expect(res.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Post ID is required',
     })
 
     expect(repost).not.toHaveBeenCalled()
-    expect(res.SpongOK).not.toHaveBeenCalled()
+    expect(res.OK).not.toHaveBeenCalled()
   })
 
   test('returns BadRequest when postId is empty', async () => {
@@ -189,7 +189,7 @@ describe('PostRepostsController.repost', () => {
 
     await invokeHandler(controller.repost, req, res)
 
-    expect(res.SpongBadRequest).toHaveBeenCalledWith({
+    expect(res.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Post ID is required',
     })
@@ -230,7 +230,7 @@ describe('PostRepostsController.repost', () => {
 
     await invokeHandler(controller.repost, req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       message: 'Post reposted successfully',
     })
@@ -252,7 +252,7 @@ describe('PostRepostsController.repost', () => {
 
     await invokeHandler(controller.repost, req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: false,
       message: 'Repost failed',
     })
@@ -275,12 +275,12 @@ describe('PostRepostsController.repost', () => {
 
     await invokeHandler(controller.repost, req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       message: 'Post reposted successfully',
     })
 
-    const response = res.SpongOK.mock.calls[0]?.[0] as Record<string, unknown> | undefined
+    const response = res.OK.mock.calls[0]?.[0] as Record<string, unknown> | undefined
 
     expect(response).not.toHaveProperty('authorId')
   })
@@ -300,7 +300,7 @@ describe('PostRepostsController.repost', () => {
 
     await expect(invokeHandler(controller.repost, req, res)).rejects.toBe(error)
 
-    expect(res.SpongOK).not.toHaveBeenCalled()
+    expect(res.OK).not.toHaveBeenCalled()
   })
 })
 
@@ -327,7 +327,7 @@ describe('PostRepostsController.findByUserId', () => {
     expect(findByUserId).toHaveBeenCalledTimes(1)
     expect(findByUserId).toHaveBeenCalledWith(USER_ID, 1, 10, 0)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       data: {
         reposts: result.data,
@@ -342,14 +342,14 @@ describe('PostRepostsController.findByUserId', () => {
 
     await invokeHandler(controller.findByUserId, req, res)
 
-    expect(res.SpongBadRequest).toHaveBeenCalledTimes(1)
-    expect(res.SpongBadRequest).toHaveBeenCalledWith({
+    expect(res.BadRequest).toHaveBeenCalledTimes(1)
+    expect(res.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'User ID is required',
     })
 
     expect(findByUserId).not.toHaveBeenCalled()
-    expect(res.SpongOK).not.toHaveBeenCalled()
+    expect(res.OK).not.toHaveBeenCalled()
   })
 
   test('returns BadRequest when userId is empty', async () => {
@@ -363,7 +363,7 @@ describe('PostRepostsController.findByUserId', () => {
 
     await invokeHandler(controller.findByUserId, req, res)
 
-    expect(res.SpongBadRequest).toHaveBeenCalledWith({
+    expect(res.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'User ID is required',
     })
@@ -451,7 +451,7 @@ describe('PostRepostsController.findByUserId', () => {
 
     await invokeHandler(controller.findByUserId, req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       data: {
         reposts: [],
@@ -484,7 +484,7 @@ describe('PostRepostsController.findByUserId', () => {
 
     await invokeHandler(controller.findByUserId, req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       data: {
         reposts: result.data,
@@ -508,7 +508,7 @@ describe('PostRepostsController.findByUserId', () => {
 
     await expect(invokeHandler(controller.findByUserId, req, res)).rejects.toBe(error)
 
-    expect(res.SpongOK).not.toHaveBeenCalled()
+    expect(res.OK).not.toHaveBeenCalled()
   })
 })
 
@@ -530,7 +530,7 @@ describe('PostRepostsController.findMe', () => {
     expect(findMe).toHaveBeenCalledTimes(1)
     expect(findMe).toHaveBeenCalledWith(USER_ID, 1, 10, 0)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       data: {
         reposts: result.data,
@@ -611,7 +611,7 @@ describe('PostRepostsController.findMe', () => {
 
     await invokeHandler(controller.findMe, req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       data: {
         reposts: [],
@@ -630,7 +630,7 @@ describe('PostRepostsController.findMe', () => {
 
     await invokeHandler(controller.findMe, req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: result.success,
       data: {
         reposts: result.data,
@@ -650,7 +650,7 @@ describe('PostRepostsController.findMe', () => {
 
     await invokeHandler(controller.findMe, req, res)
 
-    const response = res.SpongOK.mock.calls[0]?.[0] as Record<string, unknown> | undefined
+    const response = res.OK.mock.calls[0]?.[0] as Record<string, unknown> | undefined
 
     expect(response).not.toHaveProperty('internalField')
   })
@@ -665,6 +665,6 @@ describe('PostRepostsController.findMe', () => {
 
     await expect(invokeHandler(controller.findMe, req, res)).rejects.toBe(error)
 
-    expect(res.SpongOK).not.toHaveBeenCalled()
+    expect(res.OK).not.toHaveBeenCalled()
   })
 })
