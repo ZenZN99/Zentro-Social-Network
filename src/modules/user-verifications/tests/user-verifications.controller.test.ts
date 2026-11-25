@@ -1,11 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
-import {
-  SpongBadRequestException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-  Validator,
-} from 'riser-bob'
-import type { SpongHandler } from 'riser-bob'
+import { BadRequestException, NotFoundException, Validator } from 'lykosjs'
+import type { ContextHandler } from 'lykosjs'
 import type { UserVerificationsService } from '../user-verifications.service'
 import { UserVerificationStatus } from '../schemas/enums/user-verification-status'
 import { UpdateUserVerificationRule } from '../rules/update'
@@ -35,10 +30,10 @@ const { UserVerificationsController } = await import('../user-verifications.cont
 /*  Typed test doubles (no `any`)                                             */
 /* -------------------------------------------------------------------------- */
 
-type SpongReq = Parameters<SpongHandler>[0]
-type SpongRes = Parameters<SpongHandler>[1]
+type Req = Parameters<ContextHandler>[0]
+type Res = Parameters<ContextHandler>[1]
 
-type ResponseMethod = 'SpongOK' | 'SpongCreated' | 'SpongNotFound' | 'SpongUnprocessableContent'
+type ResponseMethod = 'OK' | 'Created' | 'NotFound' | 'UnprocessableContent'
 
 interface FakeResponse {
   readonly method: ResponseMethod
@@ -69,30 +64,30 @@ function createReq(options: ReqOptions = {}) {
   })
   const user = options.user === null ? undefined : (options.user ?? { id: 'user-1' })
   const req = { params: options.params ?? {}, user, json, formData: formDataFn }
-  return { req: req as unknown as SpongReq, json, formData: formDataFn, formDataValue: formData }
+  return { req: req as unknown as Req, json, formData: formDataFn, formDataValue: formData }
 }
 
 function createRes() {
   const build = () => mock((_body: unknown): void => {})
 
-  const SpongOK = build()
-  const SpongCreated = build()
-  const SpongNotFound = build()
-  const SpongUnprocessableContent = build()
+  const OK = build()
+  const Created = build()
+  const NotFound = build()
+  const UnprocessableContent = build()
 
   const res = {
-    SpongOK,
-    SpongCreated,
-    SpongNotFound,
-    SpongUnprocessableContent,
-  } as unknown as SpongRes
+    OK,
+    Created,
+    NotFound,
+    UnprocessableContent,
+  } as unknown as Res
 
   return {
     res,
-    SpongOK,
-    SpongCreated,
-    SpongNotFound,
-    SpongUnprocessableContent,
+    OK,
+    Created,
+    NotFound,
+    UnprocessableContent,
   }
 }
 type CreateResult = Awaited<ReturnType<UserVerificationsService['create']>>
@@ -181,14 +176,14 @@ describe('UserVerificationsController.create', () => {
 
   test('responds 201 with the created request on a first submission', async () => {
     const { req } = createReq()
-    const { res, SpongCreated, SpongOK } = createRes()
+    const { res, Created, OK } = createRes()
 
     await controller.create(req, res)
 
-    expect(SpongCreated).toHaveBeenCalledTimes(1)
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(Created).toHaveBeenCalledTimes(1)
+    expect(OK).not.toHaveBeenCalled()
 
-    expect(SpongCreated.mock.calls[0]?.[0]).toEqual({
+    expect(Created.mock.calls[0]?.[0]).toEqual({
       success: true,
       message: 'Verification request submitted successfully.',
       data: verificationData,
@@ -198,14 +193,14 @@ describe('UserVerificationsController.create', () => {
   test('responds 200 with the updated request on a resubmission', async () => {
     service.create.mockResolvedValueOnce(resubmittedResult)
     const { req } = createReq()
-    const { res, SpongOK, SpongCreated } = createRes()
+    const { res, OK, Created } = createRes()
 
     await controller.create(req, res)
 
-    expect(SpongOK).toHaveBeenCalledTimes(1)
-    expect(SpongCreated).not.toHaveBeenCalled()
+    expect(OK).toHaveBeenCalledTimes(1)
+    expect(Created).not.toHaveBeenCalled()
 
-    expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+    expect(OK.mock.calls[0]?.[0]).toEqual({
       success: true,
       message: 'Verification request resubmitted successfully',
       data: verificationData,
@@ -227,40 +222,40 @@ describe('UserVerificationsController.create', () => {
 
   test('does not call the service when the request is not multipart form data', async () => {
     const { req } = createReq({ formDataError: new Error('invalid form data') })
-    const { res, SpongCreated, SpongOK } = createRes()
+    const { res, Created, OK } = createRes()
 
     await expect(controller.create(req, res)).rejects.toThrow('invalid form data')
 
     expect(service.create).not.toHaveBeenCalled()
-    expect(SpongCreated).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(Created).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('lets service errors propagate without sending a success response', async () => {
     service.create.mockRejectedValueOnce(
-      new SpongBadRequestException({
+      new BadRequestException({
         success: false,
         message: 'Your account has already been verified.',
       }),
     )
     const { req } = createReq()
-    const { res, SpongCreated, SpongOK } = createRes()
+    const { res, Created, OK } = createRes()
 
-    await expect(controller.create(req, res)).rejects.toBeInstanceOf(SpongBadRequestException)
+    await expect(controller.create(req, res)).rejects.toBeInstanceOf(BadRequestException)
 
-    expect(SpongCreated).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(Created).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('never calls the service when there is no authenticated user', async () => {
     const { req } = createReq({ user: null })
-    const { res, SpongCreated, SpongOK } = createRes()
+    const { res, Created, OK } = createRes()
 
     await expect(controller.create(req, res)).rejects.toThrow()
 
     expect(service.create).not.toHaveBeenCalled()
-    expect(SpongCreated).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(Created).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 })
 
@@ -282,13 +277,13 @@ describe('UserVerificationsController.findPending', () => {
 
   test('responds 200 with the requests and pagination built from the total', async () => {
     const { req } = createReq()
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await controller.findPending(req, res)
 
-    expect(SpongOK).toHaveBeenCalledTimes(1)
+    expect(OK).toHaveBeenCalledTimes(1)
 
-    expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+    expect(OK.mock.calls[0]?.[0]).toEqual({
       success: true,
       data: {
         verifications: findPendingResult.verifications,
@@ -300,10 +295,10 @@ describe('UserVerificationsController.findPending', () => {
   test('propagates service errors without sending a success response', async () => {
     service.findPending.mockRejectedValueOnce(new Error('db down'))
     const { req } = createReq()
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.findPending(req, res)).rejects.toThrow('db down')
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 })
 
@@ -331,15 +326,15 @@ describe('UserVerificationsController.update', () => {
       body: approveBody,
     })
 
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await controller.update(req, res)
 
     expect(service.update).toHaveBeenCalledWith('admin-1', 'verification-1', approveBody)
 
-    expect(SpongOK).toHaveBeenCalledTimes(1)
+    expect(OK).toHaveBeenCalledTimes(1)
 
-    expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+    expect(OK.mock.calls[0]?.[0]).toEqual({
       success: true,
       message: 'Verification request reviewed successfully.',
       data: updateResult.data,
@@ -366,18 +361,18 @@ describe('UserVerificationsController.update', () => {
         body: approveBody,
       })
 
-      const { res, SpongNotFound, SpongOK } = createRes()
+      const { res, NotFound, OK } = createRes()
 
       await controller.update(req, res)
 
-      expect(SpongNotFound).toHaveBeenCalledTimes(1)
+      expect(NotFound).toHaveBeenCalledTimes(1)
 
-      expect(SpongNotFound.mock.calls[0]?.[0]).toEqual({
+      expect(NotFound.mock.calls[0]?.[0]).toEqual({
         success: false,
         message: 'Verification ID is required',
       })
 
-      expect(SpongOK).not.toHaveBeenCalled()
+      expect(OK).not.toHaveBeenCalled()
       expect(json).not.toHaveBeenCalled()
       expect(validateSpy).not.toHaveBeenCalled()
       expect(service.update).not.toHaveBeenCalled()
@@ -392,20 +387,20 @@ describe('UserVerificationsController.update', () => {
       body: { status: 'HACKED', rejectionReason: null },
     })
 
-    const { res, SpongUnprocessableContent, SpongOK } = createRes()
+    const { res, UnprocessableContent, OK } = createRes()
 
     await controller.update(req, res)
 
-    expect(SpongUnprocessableContent).toHaveBeenCalledTimes(1)
+    expect(UnprocessableContent).toHaveBeenCalledTimes(1)
 
-    expect(SpongUnprocessableContent.mock.calls[0]?.[0]).toEqual({
+    expect(UnprocessableContent.mock.calls[0]?.[0]).toEqual({
       success: false,
       message: 'Validation failed',
       errors: invalidErrors,
     })
 
     expect(service.update).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('does not validate or call the service when the body cannot be parsed', async () => {
@@ -413,41 +408,41 @@ describe('UserVerificationsController.update', () => {
       params: { verificationId: 'verification-1' },
       jsonError: new Error('bad json'),
     })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.update(req, res)).rejects.toThrow('bad json')
 
     expect(validateSpy).not.toHaveBeenCalled()
     expect(service.update).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('lets not-found errors from the service propagate', async () => {
     service.update.mockRejectedValueOnce(
-      new SpongNotFoundException({
+      new NotFoundException({
         success: false,
         message: 'No verification request was found for this user.',
       }),
     )
     const { req } = createReq({ params: { verificationId: 'ghost' }, body: approveBody })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
-    await expect(controller.update(req, res)).rejects.toBeInstanceOf(SpongNotFoundException)
-    expect(SpongOK).not.toHaveBeenCalled()
+    await expect(controller.update(req, res)).rejects.toBeInstanceOf(NotFoundException)
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('lets bad-request errors from the service propagate', async () => {
     service.update.mockRejectedValueOnce(
-      new SpongBadRequestException({
+      new BadRequestException({
         success: false,
         message: 'This verification request is not pending review.',
       }),
     )
     const { req } = createReq({ params: { verificationId: 'verification-1' }, body: approveBody })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
-    await expect(controller.update(req, res)).rejects.toBeInstanceOf(SpongBadRequestException)
-    expect(SpongOK).not.toHaveBeenCalled()
+    await expect(controller.update(req, res)).rejects.toBeInstanceOf(BadRequestException)
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('never calls the service when there is no authenticated user', async () => {
@@ -457,12 +452,12 @@ describe('UserVerificationsController.update', () => {
       body: approveBody,
     })
 
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.update(req, res)).rejects.toThrow()
 
     expect(service.update).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
   // HARDENING — fails today: the whole parsed body (including unknown keys) is handed to the service.
   // The service currently ignores extra keys, but the controller should forward only the whitelisted fields.
