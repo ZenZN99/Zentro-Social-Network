@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
-import type { database } from '../../../config/db/drizzle'
+import type { Database } from '../../../config/db/drizzle'
 import { ConversationsController } from '../conversations.controller'
 
 type Outcome = { value: unknown } | { error: Error }
@@ -57,7 +57,7 @@ const failing = (error: Error): Outcome => ({ error })
 const makeDependencies = () => {
   const db = new FakeDb()
 
-  const controller = new ConversationsController(db as unknown as typeof database)
+  const controller = new ConversationsController({ connection: db } as unknown as Database)
 
   return { db, controller }
 }
@@ -70,10 +70,12 @@ const makeRequest = (options?: {
   params: options?.params ?? {},
 })
 
+// findMe replies with reply.OK, while findOne and mute reply with reply.json
 const makeResponse = () => ({
   json: mock((data: unknown) => data),
-  SpongBadRequest: mock((data: unknown) => data),
-  SpongNotFound: mock((data: unknown) => data),
+  OK: mock((data: unknown) => data),
+  BadRequest: mock((data: unknown) => data),
+  NotFound: mock((data: unknown) => data),
 })
 
 const now = new Date()
@@ -112,16 +114,16 @@ describe('ConversationsController', () => {
   describe('findMe', () => {
     test('should return the user conversations with sender and receiver data', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({ userId: 'sender-id' })
-      const spongRes = makeResponse()
+      const Req = makeRequest({ userId: 'sender-id' })
+      const Res = makeResponse()
 
       db.setOutcomes([rows([conversationWithUsers])])
 
-      await controller.findMe(spongReq as never, spongRes as never)
+      await controller.findMe(Req as never, Res as never)
 
       expect(db.select).toHaveBeenCalledTimes(1)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: [
           {
@@ -151,14 +153,14 @@ describe('ConversationsController', () => {
 
     test('should return an empty array when user has no conversations', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({ userId: 'user-id' })
-      const spongRes = makeResponse()
+      const Req = makeRequest({ userId: 'user-id' })
+      const Res = makeResponse()
 
       db.setOutcomes([rows([])])
 
-      await controller.findMe(spongReq as never, spongRes as never)
+      await controller.findMe(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: [],
       })
@@ -166,8 +168,8 @@ describe('ConversationsController', () => {
 
     test('should return null sender and receiver when joined users do not exist', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({ userId: 'user-id' })
-      const spongRes = makeResponse()
+      const Req = makeRequest({ userId: 'user-id' })
+      const Res = makeResponse()
 
       db.setOutcomes([
         rows([
@@ -187,9 +189,9 @@ describe('ConversationsController', () => {
         ]),
       ])
 
-      await controller.findMe(spongReq as never, spongRes as never)
+      await controller.findMe(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: [
           {
@@ -203,8 +205,8 @@ describe('ConversationsController', () => {
 
     test('should return null profiles when avatars are null', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({ userId: 'sender-id' })
-      const spongRes = makeResponse()
+      const Req = makeRequest({ userId: 'sender-id' })
+      const Res = makeResponse()
 
       db.setOutcomes([
         rows([
@@ -216,9 +218,9 @@ describe('ConversationsController', () => {
         ]),
       ])
 
-      await controller.findMe(spongReq as never, spongRes as never)
+      await controller.findMe(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: [
           {
@@ -244,26 +246,24 @@ describe('ConversationsController', () => {
 
     test('should propagate database errors', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({ userId: 'user-id' })
-      const spongRes = makeResponse()
+      const Req = makeRequest({ userId: 'user-id' })
+      const Res = makeResponse()
 
       db.setOutcomes([failing(new Error('Database error'))])
 
-      await expect(controller.findMe(spongReq as never, spongRes as never)).rejects.toThrow(
-        'Database error',
-      )
+      await expect(controller.findMe(Req as never, Res as never)).rejects.toThrow('Database error')
     })
   })
 
   describe('findOne', () => {
     test('should return bad request when conversationId is missing', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({ userId: 'user-id' })
-      const spongRes = makeResponse()
+      const Req = makeRequest({ userId: 'user-id' })
+      const Res = makeResponse()
 
-      await controller.findOne(spongReq as never, spongRes as never)
+      await controller.findOne(Req as never, Res as never)
 
-      expect(spongRes.SpongBadRequest).toHaveBeenCalledWith({
+      expect(Res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Conversation ID is required',
       })
@@ -273,19 +273,19 @@ describe('ConversationsController', () => {
 
     test('should return not found when conversation does not exist', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'user-id',
         params: {
           conversationId: 'missing-conversation',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([rows([])])
 
-      await controller.findOne(spongReq as never, spongRes as never)
+      await controller.findOne(Req as never, Res as never)
 
-      expect(spongRes.SpongNotFound).toHaveBeenCalledWith({
+      expect(Res.NotFound).toHaveBeenCalledWith({
         success: false,
         message: 'Conversation not found',
       })
@@ -293,19 +293,19 @@ describe('ConversationsController', () => {
 
     test('should return conversation with sender and receiver details', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'sender-id',
         params: {
           conversationId: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([rows([conversationWithUsers])])
 
-      await controller.findOne(spongReq as never, spongRes as never)
+      await controller.findOne(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.json).toHaveBeenCalledWith({
         success: true,
         data: {
           ...conversation,
@@ -333,13 +333,13 @@ describe('ConversationsController', () => {
 
     test('should return null sender and receiver when joined users do not exist', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'user-id',
         params: {
           conversationId: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([
         rows([
@@ -359,9 +359,9 @@ describe('ConversationsController', () => {
         ]),
       ])
 
-      await controller.findOne(spongReq as never, spongRes as never)
+      await controller.findOne(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.json).toHaveBeenCalledWith({
         success: true,
         data: {
           ...conversation,
@@ -373,13 +373,13 @@ describe('ConversationsController', () => {
 
     test('should return null profiles when avatars are null', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'sender-id',
         params: {
           conversationId: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([
         rows([
@@ -391,9 +391,9 @@ describe('ConversationsController', () => {
         ]),
       ])
 
-      await controller.findOne(spongReq as never, spongRes as never)
+      await controller.findOne(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.json).toHaveBeenCalledWith({
         success: true,
         data: {
           ...conversation,
@@ -417,33 +417,31 @@ describe('ConversationsController', () => {
 
     test('should propagate database errors', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'user-id',
         params: {
           conversationId: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([failing(new Error('Database error'))])
 
-      await expect(controller.findOne(spongReq as never, spongRes as never)).rejects.toThrow(
-        'Database error',
-      )
+      await expect(controller.findOne(Req as never, Res as never)).rejects.toThrow('Database error')
     })
   })
 
   describe('mute', () => {
     test('should return bad request when conversation id is missing', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'sender-id',
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.mute(spongReq as never, spongRes as never)
+      await controller.mute(Req as never, Res as never)
 
-      expect(spongRes.SpongBadRequest).toHaveBeenCalledWith({
+      expect(Res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Conversation ID is required',
       })
@@ -453,19 +451,19 @@ describe('ConversationsController', () => {
 
     test('should return not found when conversation does not exist', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'sender-id',
         params: {
           id: 'missing-conversation',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([rows([])])
 
-      await controller.mute(spongReq as never, spongRes as never)
+      await controller.mute(Req as never, Res as never)
 
-      expect(spongRes.SpongNotFound).toHaveBeenCalledWith({
+      expect(Res.NotFound).toHaveBeenCalledWith({
         success: false,
         message: 'Conversation not found',
       })
@@ -475,21 +473,21 @@ describe('ConversationsController', () => {
 
     test('should mute conversation for sender', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'sender-id',
         params: {
           id: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([rows([conversation]), rows([])])
 
-      await controller.mute(spongReq as never, spongRes as never)
+      await controller.mute(Req as never, Res as never)
 
       expect(db.update).toHaveBeenCalledTimes(1)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.json).toHaveBeenCalledWith({
         success: true,
         message: 'Conversation muted successfully',
         data: {
@@ -500,13 +498,13 @@ describe('ConversationsController', () => {
 
     test('should unmute conversation for sender', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'sender-id',
         params: {
           id: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([
         rows([
@@ -518,9 +516,9 @@ describe('ConversationsController', () => {
         rows([]),
       ])
 
-      await controller.mute(spongReq as never, spongRes as never)
+      await controller.mute(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.json).toHaveBeenCalledWith({
         success: true,
         message: 'Conversation unmuted successfully',
         data: {
@@ -531,19 +529,19 @@ describe('ConversationsController', () => {
 
     test('should mute conversation for receiver', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'receiver-id',
         params: {
           id: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([rows([conversation]), rows([])])
 
-      await controller.mute(spongReq as never, spongRes as never)
+      await controller.mute(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.json).toHaveBeenCalledWith({
         success: true,
         message: 'Conversation muted successfully',
         data: {
@@ -554,13 +552,13 @@ describe('ConversationsController', () => {
 
     test('should unmute conversation for receiver', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'receiver-id',
         params: {
           id: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([
         rows([
@@ -572,9 +570,9 @@ describe('ConversationsController', () => {
         rows([]),
       ])
 
-      await controller.mute(spongReq as never, spongRes as never)
+      await controller.mute(Req as never, Res as never)
 
-      expect(spongRes.json).toHaveBeenCalledWith({
+      expect(Res.json).toHaveBeenCalledWith({
         success: true,
         message: 'Conversation unmuted successfully',
         data: {
@@ -585,36 +583,32 @@ describe('ConversationsController', () => {
 
     test('should propagate database errors when fetching conversation', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'sender-id',
         params: {
           id: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([failing(new Error('Database error'))])
 
-      await expect(controller.mute(spongReq as never, spongRes as never)).rejects.toThrow(
-        'Database error',
-      )
+      await expect(controller.mute(Req as never, Res as never)).rejects.toThrow('Database error')
     })
 
     test('should propagate database errors when updating conversation', async () => {
       const { controller, db } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'sender-id',
         params: {
           id: 'conversation-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
       db.setOutcomes([rows([conversation]), failing(new Error('Update failed'))])
 
-      await expect(controller.mute(spongReq as never, spongRes as never)).rejects.toThrow(
-        'Update failed',
-      )
+      await expect(controller.mute(Req as never, Res as never)).rejects.toThrow('Update failed')
     })
   })
 })
