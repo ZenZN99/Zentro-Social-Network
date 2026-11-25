@@ -1,5 +1,4 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { UsersController } from './users.controller'
 import type { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 import type { RolesMiddleware } from '../../config/middlewares/roles.middleware'
@@ -7,7 +6,7 @@ import { ProtectedMiddleware } from '../../config/middlewares/protected.middlewa
 
 export class UsersRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: UsersController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly userActiveMiddleware: UserActiveMiddleware,
@@ -23,17 +22,16 @@ export class UsersRouter {
 
     // Public routes
 
-    this.bob.spongGroup('/api/users', (group) => {
-      group.spongGet('/', this.controller.findAll)
-      group.spongGet('/:username', this.controller.findOneByUsername)
+    this.app.group('/api/users', (guest) => {
+      guest.GET('/', this.controller.findAll)
+      guest.GET('/:username', this.controller.findOneByUsername)
 
       // Protected routes
-      group.spongGroup(
+      guest.group(
         '/',
-        (group) => {
-          group.spongPatch('/:userId', this.controller.updateRole)
-
-          group.spongDelete('/:userId', this.controller.block)
+        (auth) => {
+          auth.PATCH('/:userId', this.controller.updateRole)
+          auth.DELETE('/:userId', this.controller.block)
         },
         protectedMiddleware.admin(),
       )
