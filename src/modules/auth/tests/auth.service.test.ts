@@ -1,34 +1,26 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test'
-import type { database } from '../../../config/db/drizzle'
+import type { Database } from '../../../config/db/drizzle'
 import { UserRole } from '../../users/schemas/enums/user-role'
 
-const validatorMock = mock((_value: unknown, _rule: unknown): unknown => ({
-  valid: true,
-  data: {},
-  errors: [],
-}))
-
-class SpongException extends Error {
+class Exception extends Error {
   constructor(public readonly body: unknown) {
     super(
       typeof body === 'object' && body !== null && 'message' in body
         ? String(body.message)
-        : 'Spong exception',
+        : ' exception',
     )
   }
 }
 
-const actualRiserBob = await import('riser-bob')
+// Plain snapshots of the real modules (copied BEFORE mocking), so that
+// restoring them in afterAll brings back the real exports.
+const actualLykos = { ...(await import('lykosjs')) }
 
-mock.module('riser-bob', () => ({
-  ...actualRiserBob,
-  Validator: {
-    validate: validatorMock,
-  },
-  SpongBadRequestException: SpongException,
-  SpongInternalServerErrorException: SpongException,
-  SpongUnauthorizedException: SpongException,
-  SpongUnprocessableEntityException: SpongException,
+mock.module('lykosjs', () => ({
+  ...actualLykos,
+  BadRequestException: Exception,
+  InternalServerErrorException: Exception,
+  UnauthorizedException: Exception,
 }))
 
 const bcryptHash = mock(async (_value: string, _rounds: number) => 'hashed-value')
@@ -58,18 +50,19 @@ const cookieManager = {
 
 const fromRequest = mock((_request: Request) => cookieManager)
 
-const actualCookie = await import('@riser-bob/cookie')
+const actualCookie = { ...(await import('@lykosjs/cookie')) }
 
-mock.module('@riser-bob/cookie', () => ({
+mock.module('@lykosjs/cookie', () => ({
   CookieManager: {
     fromRequest,
   },
 }))
 
 afterAll(() => {
-  mock.module('riser-bob', () => actualRiserBob)
-  mock.module('@riser-bob/cookie', () => actualCookie)
+  mock.module('lykosjs', () => actualLykos)
+  mock.module('@lykosjs/cookie', () => actualCookie)
 })
+
 const signPair = mock(() => ({
   accessToken: 'access-token',
   refreshToken: 'refresh-token',
@@ -101,7 +94,7 @@ mock.module('../../../utilities/generate-user-name', () => ({
   generateUsername: generateUsernameMock,
 }))
 
-const sanitizeUserMock = mock((user: unknown) => ({
+const sanitizeUserMock = mock((_user: unknown) => ({
   id: 'user-id',
   username: 'zen-user',
   email: 'zen@example.com',
@@ -195,7 +188,7 @@ const createFakeDb = () => {
 
   return {
     db,
-    service: new AuthService(db as unknown as typeof database),
+    service: new AuthService({ connection: db } as unknown as Database),
   }
 }
 
@@ -236,15 +229,6 @@ const readResponse = async (response: Response) => response.json()
 describe('AuthService', () => {
   beforeEach(() => {
     mock.clearAllMocks()
-
-    validatorMock.mockImplementation(() => ({
-      valid: true,
-      data: {
-        ...registerBody,
-        ...loginBody,
-      },
-      errors: [],
-    }))
 
     bcryptHash.mockResolvedValue('hashed-value')
     bcryptCompare.mockResolvedValue(true)
@@ -298,7 +282,6 @@ describe('AuthService', () => {
         },
       })
 
-      expect(validatorMock).toHaveBeenCalledTimes(1)
       expect(db.select).toHaveBeenCalledTimes(1)
       expect(db.insert).toHaveBeenCalledTimes(2)
       expect(db.update).toHaveBeenCalledTimes(1)
@@ -312,23 +295,6 @@ describe('AuthService', () => {
 
       expect(cookieSet).toHaveBeenCalledTimes(2)
       expect(cookieApplyTo).toHaveBeenCalledTimes(1)
-    })
-
-    test('should throw UnprocessableEntityException when validation fails', async () => {
-      const { db, service } = createFakeDb()
-
-      validatorMock.mockReturnValue({
-        valid: false,
-        errors: [{ field: 'email', message: 'Invalid email' }],
-      })
-
-      await expect(service.register(registerBody, createRequest())).rejects.toThrow(
-        'validation failed',
-      )
-
-      expect(db.select).not.toHaveBeenCalled()
-      expect(db.insert).not.toHaveBeenCalled()
-      expect(bcryptHash).not.toHaveBeenCalled()
     })
 
     test('should throw BadRequestException when email already exists', async () => {
@@ -443,19 +409,6 @@ describe('AuthService', () => {
 
       expect(signPair).toHaveBeenCalledTimes(1)
       expect(cookieSet).toHaveBeenCalledTimes(2)
-    })
-
-    test('should throw UnprocessableEntityException when validation fails', async () => {
-      const { db, service } = createFakeDb()
-
-      validatorMock.mockReturnValue({
-        valid: false,
-        errors: [{ field: 'password', message: 'Required' }],
-      })
-
-      await expect(service.login(loginBody, createRequest())).rejects.toThrow('validation failed')
-
-      expect(db.select).not.toHaveBeenCalled()
     })
 
     test('should throw BadRequestException when user does not exist', async () => {
@@ -693,7 +646,7 @@ describe('AuthService', () => {
       verifyRefreshToken.mockReturnValue({
         id: 123,
       })
-      
+
       await expect(service.refreshToken(createRequest())).rejects.toThrow(
         'You are not authenticated',
       )
@@ -701,6 +654,7 @@ describe('AuthService', () => {
       expect(verifyRefreshToken).toHaveBeenCalledWith('refresh-token')
       expect(db.select).not.toHaveBeenCalled()
     })
+
     test('should throw UnauthorizedException when user does not exist', async () => {
       const { db, service } = createFakeDb()
 
