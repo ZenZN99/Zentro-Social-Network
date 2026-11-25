@@ -1,4 +1,4 @@
-import { JwtManager } from '@riser-bob/jwt'
+import { JwtManager } from '@lykosjs/jwt'
 
 const jwt = new JwtManager({
   accessToken: {
