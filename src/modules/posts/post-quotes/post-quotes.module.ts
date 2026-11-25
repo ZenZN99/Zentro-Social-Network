@@ -1,10 +1,7 @@
-import { database } from '../../../config/db/drizzle'
+import { bind, DIModule } from 'lykosjs'
+import { Database } from '../../../config/db/drizzle'
 import { PostQuotesService } from './post-quotes.service'
 
-export class PostQuotesModule {
-  readonly postQuotesService: PostQuotesService
-
-  constructor() {
-    this.postQuotesService = new PostQuotesService(database)
-  }
+export class PostQuotesModule extends DIModule {
+  override providers = [Database, bind(PostQuotesService, Database)]
 }
