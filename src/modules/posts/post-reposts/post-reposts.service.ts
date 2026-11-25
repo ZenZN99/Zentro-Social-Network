@@ -2,7 +2,7 @@ import { eq, and, desc, sql, count } from 'drizzle-orm'
 import type { NodePgTransaction } from 'drizzle-orm/node-postgres'
 import type { ExtractTablesWithRelations } from 'drizzle-orm'
 import { PostRepostSchema } from './schemas/post-repost.schema'
-import type { database } from '../../../config/db/drizzle'
+import type { Database } from '../../../config/db/drizzle'
 import { PostSchema } from '../schemas/post.schema'
 import { VisibilityStatus } from '../schemas/enums/visibility-status'
 import { FollowSchema } from '../../follows/schemas/follow.schema'
@@ -11,7 +11,7 @@ import { UserProfileSchema } from '../../user-profiles/schemas/user-profile.sche
 import { UserSchema } from '../../users/schemas/user.schema'
 import { NotificationType } from '../../notifications/schemas/enums/notification-type'
 import type { NotificationsService } from '../../notifications/notifications.service'
-import { SpongConflictException, SpongForbiddenException, SpongNotFoundException } from 'riser-bob'
+import { ConflictException, ForbiddenException, NotFoundException } from 'lykosjs'
 
 type Transaction = NodePgTransaction<
   Record<string, never>,
@@ -20,12 +20,12 @@ type Transaction = NodePgTransaction<
 
 export class PostRepostsService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async attach(postId: string, userId: string, transaction?: Transaction): Promise<boolean> {
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const [existing] = await db
       .select({ id: PostRepostSchema.id })
@@ -49,7 +49,7 @@ export class PostRepostsService {
     return true
   }
   async detachAll(postId: string, transaction?: Transaction): Promise<number> {
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const deleted = await db
       .delete(PostRepostSchema)
@@ -60,7 +60,7 @@ export class PostRepostsService {
   }
 
   async repost(userId: string, postId: string) {
-    const result = await this.db.transaction(async (transaction) => {
+    const result = await this.db.connection.transaction(async (transaction) => {
       // 1. Find original post
       const [post] = await transaction
         .select()
@@ -69,7 +69,7 @@ export class PostRepostsService {
         .limit(1)
 
       if (!post) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Post not found',
         })
@@ -77,7 +77,7 @@ export class PostRepostsService {
 
       // 2. Check post visibility and access permissions
       if (post.visibility === VisibilityStatus.PRIVATE && post.authorId !== userId) {
-        throw new SpongForbiddenException({
+        throw new ForbiddenException({
           success: false,
           message: 'You are not allowed to repost this post',
         })
@@ -93,7 +93,7 @@ export class PostRepostsService {
           .limit(1)
 
         if (!follow) {
-          throw new SpongForbiddenException({
+          throw new ForbiddenException({
             success: false,
             message: 'You are not allowed to repost this post',
           })
@@ -104,7 +104,7 @@ export class PostRepostsService {
       const created = await this.attach(postId, userId, transaction)
 
       if (!created) {
-        throw new SpongConflictException({
+        throw new ConflictException({
           success: false,
           message: 'You have already reposted this post',
         })
@@ -130,7 +130,7 @@ export class PostRepostsService {
     }
 
     // 5. Fetch sender user
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select({
         id: UserSchema.id,
         firstName: UserSchema.firstName,
@@ -162,7 +162,7 @@ export class PostRepostsService {
     } as const
   }
   async findByUserId(userId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
-    const reposts = await this.db
+    const reposts = await this.db.connection
       .select({
         repost: PostRepostSchema,
         post: PostSchema,
@@ -192,7 +192,7 @@ export class PostRepostsService {
         : null,
     }))
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({
         total: count(),
       })
@@ -207,7 +207,7 @@ export class PostRepostsService {
   }
 
   async findMe(userId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
-    const reposts = await this.db
+    const reposts = await this.db.connection
       .select({
         repost: PostRepostSchema,
         post: PostSchema,
@@ -237,7 +237,7 @@ export class PostRepostsService {
         : null,
     }))
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({
         total: count(),
       })
