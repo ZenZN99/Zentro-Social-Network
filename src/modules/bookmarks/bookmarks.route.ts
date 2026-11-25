@@ -1,11 +1,10 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { BookmarksController } from './bookmarks.controller'
 import type { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 
 export class BookmarksRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: BookmarksController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly userActiveMiddleware: UserActiveMiddleware,
@@ -14,16 +13,16 @@ export class BookmarksRouter {
   register(): void {
     // Public routes
 
-    this.bob.spongGroup('/api/bookmarks', (group) => {
-      group.spongGet('/count/:postId', this.controller.countByPostId)
-      group.spongGroup(
+    this.app.group('/api/bookmarks', (guest) => {
+      guest.GET('/count/:postId', this.controller.countByPostId)
+      guest.group(
         '/',
-        (group) => {
+        (auth) => {
           // Protected routes
-          group.spongPost('/:postId', this.controller.toggle)
-          group.spongGet('/me', this.controller.findMe)
-          group.spongGet('/is-bookmarked/:postId', this.controller.isBookmarked)
-          group.spongGet('/count/me', this.controller.countMe)
+          auth.POST('/:postId', this.controller.toggle)
+          auth.GET('/me', this.controller.findMe)
+          auth.GET('/is-bookmarked/:postId', this.controller.isBookmarked)
+          auth.GET('/count/me', this.controller.countMe)
         },
         this.authMiddleware.middleware,
         this.userActiveMiddleware.middleware,
