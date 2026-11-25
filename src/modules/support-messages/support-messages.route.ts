@@ -1,5 +1,4 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { SupportMessagesController } from './support-messages.controller'
 import type { RolesMiddleware } from '../../config/middlewares/roles.middleware'
 import type { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
@@ -7,7 +6,7 @@ import { ProtectedMiddleware } from '../../config/middlewares/protected.middlewa
 
 export class SupportMessagesRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: SupportMessagesController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly userMiddleware: UserActiveMiddleware,
@@ -22,11 +21,11 @@ export class SupportMessagesRouter {
     )
 
     // Protected routes
-    this.bob.spongGroup('/api/support-messages', (group) => {
-      group.spongPost('/:conversationId', this.controller.create, protectedMiddleware.auth())
-      group.spongGet('/:conversationId', this.controller.findAll, protectedMiddleware.auth())
-      group.spongPut('/:conversationId', this.controller.markAllAsRead, protectedMiddleware.auth())
-      group.spongDelete(
+    this.app.group('/api/support-messages', (auth) => {
+      auth.POST('/:conversationId', this.controller.create, protectedMiddleware.auth())
+      auth.GET('/:conversationId', this.controller.findAll, protectedMiddleware.auth())
+      auth.PUT('/:conversationId', this.controller.markAllAsRead, protectedMiddleware.auth())
+      auth.DELETE(
         '/:conversationId/:messageId',
         this.controller.delete,
         protectedMiddleware.adminAndSupport(),
