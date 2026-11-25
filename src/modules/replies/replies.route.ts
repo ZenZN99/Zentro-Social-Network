@@ -1,11 +1,10 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { RepliesController } from './replies.controller'
 import type { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 
 export class RepliesRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: RepliesController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly userActiveMiddleware: UserActiveMiddleware,
@@ -14,18 +13,18 @@ export class RepliesRouter {
   register(): void {
     // Public routes
 
-    this.bob.spongGroup('/api/replies', (group) => {
-      group.spongGet('/:commentId/all', this.controller.findAll)
-      group.spongGet('/:replyId', this.controller.findOne)
+    this.app.group('/api/replies', (guest) => {
+      guest.GET('/:commentId/all', this.controller.findAll)
+      guest.GET('/:replyId', this.controller.findOne)
 
       // Protected routes
-      group.spongGroup(
+      guest.group(
         '/',
-        (group) => {
-          group.spongGet('/me', this.controller.findMe)
-          group.spongPost('/:commentId', this.controller.create)
-          group.spongPut('/:replyId', this.controller.update)
-          group.spongDelete('/:replyId', this.controller.delete)
+        (auth) => {
+          auth.GET('/me', this.controller.findMe)
+          auth.POST('/:commentId', this.controller.create)
+          auth.PUT('/:replyId', this.controller.update)
+          auth.DELETE('/:replyId', this.controller.delete)
         },
         this.authMiddleware.middleware,
         this.userActiveMiddleware.middleware,
