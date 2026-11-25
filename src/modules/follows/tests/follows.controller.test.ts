@@ -10,8 +10,8 @@ const makeRequest = (options?: {
 })
 
 const makeResponse = () => ({
-  SpongOK: mock((data: unknown) => data),
-  SpongBadRequest: mock((data: unknown) => data),
+  OK: mock((data: unknown) => data),
+  BadRequest: mock((data: unknown) => data),
 })
 
 const makeDependencies = () => {
@@ -87,14 +87,14 @@ describe('FollowsController', () => {
   describe('toggle', () => {
     test('should return bad request when followingId is missing', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'follower-id',
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.toggle(spongReq as never, spongRes as never)
+      await controller.toggle(Req as never, Res as never)
 
-      expect(spongRes.SpongBadRequest).toHaveBeenCalledWith({
+      expect(Res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'User ID is required',
       })
@@ -103,19 +103,19 @@ describe('FollowsController', () => {
 
     test('should toggle follow and return success response', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'follower-id',
         params: {
           followingId: 'following-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.toggle(spongReq as never, spongRes as never)
+      await controller.toggle(Req as never, Res as never)
 
       expect(followsService.toggle).toHaveBeenCalledWith('follower-id', 'following-id')
 
-      expect(spongRes.SpongOK).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         message: 'User followed successfully',
         data: {
@@ -132,17 +132,17 @@ describe('FollowsController', () => {
         message: 'User unfollowed successfully',
       })) as typeof followsService.toggle
 
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'follower-id',
         params: {
           followingId: 'following-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.toggle(spongReq as never, spongRes as never)
+      await controller.toggle(Req as never, Res as never)
 
-      expect(spongRes.SpongOK).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: undefined,
         message: 'User unfollowed successfully',
         data: {
@@ -159,29 +159,27 @@ describe('FollowsController', () => {
         throw serviceError
       }) as typeof followsService.toggle
 
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'follower-id',
         params: {
           followingId: 'following-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await expect(controller.toggle(spongReq as never, spongRes as never)).rejects.toThrow(
-        'Follow failed',
-      )
+      await expect(controller.toggle(Req as never, Res as never)).rejects.toThrow('Follow failed')
     })
   })
 
   describe('findFollowers', () => {
     test('should return bad request when userId is missing', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest()
-      const spongRes = makeResponse()
+      const Req = makeRequest()
+      const Res = makeResponse()
 
-      await controller.findFollowers(spongReq as never, spongRes as never)
+      await controller.findFollowers(Req as never, Res as never)
 
-      expect(spongRes.SpongBadRequest).toHaveBeenCalledWith({
+      expect(Res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'User ID is required',
       })
@@ -196,19 +194,19 @@ describe('FollowsController', () => {
       })
 
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         params: {
           userId: 'user-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.findFollowers(spongReq as never, spongRes as never)
+      await controller.findFollowers(Req as never, Res as never)
 
-      expect(getPaginationMock).toHaveBeenCalledWith(spongReq)
+      expect(getPaginationMock).toHaveBeenCalledWith(Req)
       expect(followsService.findFollowers).toHaveBeenCalledWith('user-id', 2, 10, 10)
 
-      expect(spongRes.SpongOK).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: [],
         pagination: {
@@ -227,14 +225,14 @@ describe('FollowsController', () => {
         throw new Error('Find followers failed')
       }) as typeof followsService.findFollowers
 
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         params: {
           userId: 'user-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await expect(controller.findFollowers(spongReq as never, spongRes as never)).rejects.toThrow(
+      await expect(controller.findFollowers(Req as never, Res as never)).rejects.toThrow(
         'Find followers failed',
       )
     })
@@ -243,12 +241,12 @@ describe('FollowsController', () => {
   describe('findFollowing', () => {
     test('should return bad request when userId is missing', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest()
-      const spongRes = makeResponse()
+      const Req = makeRequest()
+      const Res = makeResponse()
 
-      await controller.findFollowing(spongReq as never, spongRes as never)
+      await controller.findFollowing(Req as never, Res as never)
 
-      expect(spongRes.SpongBadRequest).toHaveBeenCalledWith({
+      expect(Res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'User ID is required',
       })
@@ -257,18 +255,18 @@ describe('FollowsController', () => {
 
     test('should return following users with pagination', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         params: {
           userId: 'user-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.findFollowing(spongReq as never, spongRes as never)
+      await controller.findFollowing(Req as never, Res as never)
 
       expect(followsService.findFollowing).toHaveBeenCalledWith('user-id', 1, 10, 0)
 
-      expect(spongRes.SpongOK).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: [],
         pagination: {
@@ -287,14 +285,14 @@ describe('FollowsController', () => {
         throw new Error('Find following failed')
       }) as typeof followsService.findFollowing
 
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         params: {
           userId: 'user-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await expect(controller.findFollowing(spongReq as never, spongRes as never)).rejects.toThrow(
+      await expect(controller.findFollowing(Req as never, Res as never)).rejects.toThrow(
         'Find following failed',
       )
     })
@@ -303,14 +301,14 @@ describe('FollowsController', () => {
   describe('isFollowing', () => {
     test('should return bad request when followingId is missing', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'follower-id',
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.isFollowing(spongReq as never, spongRes as never)
+      await controller.isFollowing(Req as never, Res as never)
 
-      expect(spongRes.SpongBadRequest).toHaveBeenCalledWith({
+      expect(Res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'User ID is required',
       })
@@ -319,19 +317,19 @@ describe('FollowsController', () => {
 
     test('should return following status', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'follower-id',
         params: {
           followingId: 'following-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.isFollowing(spongReq as never, spongRes as never)
+      await controller.isFollowing(Req as never, Res as never)
 
       expect(followsService.isFollowing).toHaveBeenCalledWith('follower-id', 'following-id')
 
-      expect(spongRes.SpongOK).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           isFollowing: true,
@@ -346,17 +344,17 @@ describe('FollowsController', () => {
         isFollowing: false,
       })) as typeof followsService.isFollowing
 
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'follower-id',
         params: {
           followingId: 'following-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.isFollowing(spongReq as never, spongRes as never)
+      await controller.isFollowing(Req as never, Res as never)
 
-      expect(spongRes.SpongOK).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           isFollowing: false,
@@ -371,15 +369,15 @@ describe('FollowsController', () => {
         throw new Error('Check follow failed')
       }) as typeof followsService.isFollowing
 
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         userId: 'follower-id',
         params: {
           followingId: 'following-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await expect(controller.isFollowing(spongReq as never, spongRes as never)).rejects.toThrow(
+      await expect(controller.isFollowing(Req as never, Res as never)).rejects.toThrow(
         'Check follow failed',
       )
     })
@@ -388,12 +386,12 @@ describe('FollowsController', () => {
   describe('countFollowers', () => {
     test('should return bad request when userId is missing', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest()
-      const spongRes = makeResponse()
+      const Req = makeRequest()
+      const Res = makeResponse()
 
-      await controller.countFollowers(spongReq as never, spongRes as never)
+      await controller.countFollowers(Req as never, Res as never)
 
-      expect(spongRes.SpongBadRequest).toHaveBeenCalledWith({
+      expect(Res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'User ID is required',
       })
@@ -402,18 +400,18 @@ describe('FollowsController', () => {
 
     test('should return followers count', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         params: {
           userId: 'user-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.countFollowers(spongReq as never, spongRes as never)
+      await controller.countFollowers(Req as never, Res as never)
 
       expect(followsService.countFollowers).toHaveBeenCalledWith('user-id')
 
-      expect(spongRes.SpongOK).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: 25,
       })
@@ -426,14 +424,14 @@ describe('FollowsController', () => {
         throw new Error('Count followers failed')
       }) as typeof followsService.countFollowers
 
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         params: {
           userId: 'user-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await expect(controller.countFollowers(spongReq as never, spongRes as never)).rejects.toThrow(
+      await expect(controller.countFollowers(Req as never, Res as never)).rejects.toThrow(
         'Count followers failed',
       )
     })
@@ -442,12 +440,12 @@ describe('FollowsController', () => {
   describe('countFollowing', () => {
     test('should return bad request when userId is missing', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest()
-      const spongRes = makeResponse()
+      const Req = makeRequest()
+      const Res = makeResponse()
 
-      await controller.countFollowing(spongReq as never, spongRes as never)
+      await controller.countFollowing(Req as never, Res as never)
 
-      expect(spongRes.SpongBadRequest).toHaveBeenCalledWith({
+      expect(Res.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'User ID is required',
       })
@@ -456,18 +454,18 @@ describe('FollowsController', () => {
 
     test('should return following count', async () => {
       const { controller, followsService } = makeDependencies()
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         params: {
           userId: 'user-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await controller.countFollowing(spongReq as never, spongRes as never)
+      await controller.countFollowing(Req as never, Res as never)
 
       expect(followsService.countFollowing).toHaveBeenCalledWith('user-id')
 
-      expect(spongRes.SpongOK).toHaveBeenCalledWith({
+      expect(Res.OK).toHaveBeenCalledWith({
         success: true,
         data: 15,
       })
@@ -480,14 +478,14 @@ describe('FollowsController', () => {
         throw new Error('Count following failed')
       }) as typeof followsService.countFollowing
 
-      const spongReq = makeRequest({
+      const Req = makeRequest({
         params: {
           userId: 'user-id',
         },
       })
-      const spongRes = makeResponse()
+      const Res = makeResponse()
 
-      await expect(controller.countFollowing(spongReq as never, spongRes as never)).rejects.toThrow(
+      await expect(controller.countFollowing(Req as never, Res as never)).rejects.toThrow(
         'Count following failed',
       )
     })
