@@ -1,5 +1,5 @@
-import { defineSchema, rules } from 'riser-bob'
+import { Validator, defineSchema } from 'lykosjs'
 
 export const CreateCommentRule = defineSchema({
-  content: rules(['required', 'string', 'maxLength:300']),
+  content: Validator.string(3, 300).required(),
 })
