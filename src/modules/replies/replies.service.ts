@@ -1,27 +1,23 @@
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import { buildPagination } from '../../utilities/pagination'
 import { UserSchema } from '../users/schemas/user.schema'
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { CommentSchema } from '../comments/schemas/comment.schema'
 import { ReplySchema } from './schemas/reply.schema'
 import { count, desc, eq, sql } from 'drizzle-orm'
 import { PostSchema } from '../posts/schemas/post.schema'
 import type { NotificationsService } from '../notifications/notifications.service'
 import { NotificationType } from '../notifications/schemas/enums/notification-type'
-import {
-  SpongForbiddenException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-} from 'riser-bob'
+import { ForbiddenException, InternalServerErrorException, NotFoundException } from 'lykosjs'
 
 export class RepliesService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(userId: string, commentId: string, content: string, parentReplyId?: string) {
-    return await this.db.transaction(async (transaction) => {
+    return await this.db.connection.transaction(async (transaction) => {
       const [comment] = await transaction
         .select()
         .from(CommentSchema)
@@ -29,7 +25,7 @@ export class RepliesService {
         .limit(1)
 
       if (!comment) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Comment not found',
         })
@@ -45,7 +41,7 @@ export class RepliesService {
         .limit(1)
 
       if (!user) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'User not found',
         })
@@ -78,7 +74,7 @@ export class RepliesService {
           .limit(1)
 
         if (!parentReply) {
-          throw new SpongNotFoundException({
+          throw new NotFoundException({
             success: false,
             message: 'Parent Reply not found',
           })
@@ -98,7 +94,7 @@ export class RepliesService {
         .returning()
 
       if (!reply) {
-        throw new SpongInternalServerErrorException({
+        throw new InternalServerErrorException({
           success: false,
           message: 'Failed to create reply',
         })
@@ -145,21 +141,21 @@ export class RepliesService {
   }
 
   async findAll(commentId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
-    const [comment] = await this.db
+    const [comment] = await this.db.connection
       .select()
       .from(CommentSchema)
       .where(eq(CommentSchema.id, commentId))
       .limit(1)
 
     if (!comment) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Comment not found',
       })
     }
 
     const [replies, countResult] = await Promise.all([
-      this.db
+      this.db.connection
         .select({
           reply: ReplySchema,
           user: {
@@ -176,7 +172,7 @@ export class RepliesService {
         .limit(limit)
         .offset(offset),
 
-      this.db
+      this.db.connection
         .select({ total: count() })
         .from(ReplySchema)
         .where(eq(ReplySchema.commentId, commentId)),
@@ -193,7 +189,7 @@ export class RepliesService {
 
   async findMe(userId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
     const [replies, countResult] = await Promise.all([
-      this.db
+      this.db.connection
         .select({
           reply: ReplySchema,
           user: {
@@ -210,7 +206,10 @@ export class RepliesService {
         .limit(limit)
         .offset(offset),
 
-      this.db.select({ total: count() }).from(ReplySchema).where(eq(ReplySchema.userId, userId)),
+      this.db.connection
+        .select({ total: count() })
+        .from(ReplySchema)
+        .where(eq(ReplySchema.userId, userId)),
     ])
 
     const total = countResult[0]?.total ?? 0
@@ -223,7 +222,7 @@ export class RepliesService {
   }
 
   async findOne(replyId: string) {
-    const [reply] = await this.db
+    const [reply] = await this.db.connection
       .select({
         reply: ReplySchema,
         user: {
@@ -239,7 +238,7 @@ export class RepliesService {
       .limit(1)
 
     if (!reply) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Reply not found',
       })
@@ -252,27 +251,27 @@ export class RepliesService {
   }
 
   async update(userId: string, replyId: string, content: string) {
-    const [reply] = await this.db
+    const [reply] = await this.db.connection
       .select()
       .from(ReplySchema)
       .where(eq(ReplySchema.id, replyId))
       .limit(1)
 
     if (!reply) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Reply not found',
       })
     }
 
     if (reply.userId !== userId) {
-      throw new SpongForbiddenException({
+      throw new ForbiddenException({
         success: false,
         message: 'You are not allowed to edit this reply',
       })
     }
 
-    const [updatedReply] = await this.db
+    const [updatedReply] = await this.db.connection
       .update(ReplySchema)
       .set({
         content,
@@ -290,7 +289,7 @@ export class RepliesService {
   }
 
   async delete(userId: string, replyId: string) {
-    return await this.db.transaction(async (transaction) => {
+    return await this.db.connection.transaction(async (transaction) => {
       // 1. Find reply
       const [reply] = await transaction
         .select()
@@ -299,7 +298,7 @@ export class RepliesService {
         .limit(1)
 
       if (!reply) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Reply not found',
         })
@@ -307,7 +306,7 @@ export class RepliesService {
 
       // 2. Check ownership
       if (reply.userId !== userId) {
-        throw new SpongForbiddenException({
+        throw new ForbiddenException({
           success: false,
           message: 'You are not allowed to delete this reply',
         })
@@ -321,7 +320,7 @@ export class RepliesService {
         .limit(1)
 
       if (!comment) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Comment not found',
         })
