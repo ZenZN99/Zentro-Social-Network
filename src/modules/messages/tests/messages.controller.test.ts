@@ -50,17 +50,17 @@ function createService() {
 
 function createResponse() {
   return {
-    SpongCreated: mock((payload: unknown) => ({
+    Created: mock((payload: unknown) => ({
       status: 201,
       payload,
     })),
 
-    SpongOK: mock((payload: unknown) => ({
+    OK: mock((payload: unknown) => ({
       status: 200,
       payload,
     })),
 
-    SpongBadRequest: mock((payload: unknown) => ({
+    BadRequest: mock((payload: unknown) => ({
       status: 400,
       payload,
     })),
@@ -123,7 +123,7 @@ describe('MessagesController.create', () => {
     expect(service.create).toHaveBeenCalledTimes(1)
     expect(service.create).toHaveBeenCalledWith('sender-1', 'receiver-1', formData)
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: true,
       message: createResult.message,
       data: createResult.data,
@@ -139,14 +139,14 @@ describe('MessagesController.create', () => {
 
     await controller.create(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Receiver ID is required',
     })
 
     expect(request.formData).not.toHaveBeenCalled()
     expect(service.create).not.toHaveBeenCalled()
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('returns bad request when receiverId is empty', async () => {
@@ -160,7 +160,7 @@ describe('MessagesController.create', () => {
 
     await controller.create(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.create).not.toHaveBeenCalled()
     expect(request.formData).not.toHaveBeenCalled()
   })
@@ -251,7 +251,7 @@ describe('MessagesController.create', () => {
     )
 
     expect(service.create).not.toHaveBeenCalled()
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('propagates service errors', async () => {
@@ -269,7 +269,7 @@ describe('MessagesController.create', () => {
       'Message creation failed',
     )
 
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('does not call service if receiverId is missing even when FormData is available', async () => {
@@ -306,7 +306,7 @@ describe('MessagesController.findAll', () => {
     expect(service.findAll).toHaveBeenCalledTimes(1)
     expect(service.findAll).toHaveBeenCalledWith('user-1', 'conversation-1')
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       data: findAllResult.data,
     })
@@ -321,13 +321,13 @@ describe('MessagesController.findAll', () => {
 
     await controller.findAll(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Conversation ID is required',
     })
 
     expect(service.findAll).not.toHaveBeenCalled()
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 
   test('returns bad request when conversationId is empty', async () => {
@@ -341,7 +341,7 @@ describe('MessagesController.findAll', () => {
 
     await controller.findAll(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.findAll).not.toHaveBeenCalled()
   })
 
@@ -376,7 +376,7 @@ describe('MessagesController.findAll', () => {
       'Failed to retrieve messages',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 
   test('returns an empty array when the conversation has no messages', async () => {
@@ -395,7 +395,7 @@ describe('MessagesController.findAll', () => {
 
     await controller.findAll(request as never, response as never)
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       data: [],
     })
@@ -418,7 +418,7 @@ describe('MessagesController.markAllAsRead', () => {
     expect(service.markAllAsRead).toHaveBeenCalledTimes(1)
     expect(service.markAllAsRead).toHaveBeenCalledWith('user-1', 'conversation-1')
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       message: markAllAsReadResult.message,
       data: markAllAsReadResult.data,
@@ -434,7 +434,7 @@ describe('MessagesController.markAllAsRead', () => {
 
     await controller.markAllAsRead(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Conversation ID is required',
     })
@@ -453,7 +453,7 @@ describe('MessagesController.markAllAsRead', () => {
 
     await controller.markAllAsRead(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.markAllAsRead).not.toHaveBeenCalled()
   })
 
@@ -487,7 +487,7 @@ describe('MessagesController.markAllAsRead', () => {
       'Bulk update failed',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 })
 
@@ -507,7 +507,7 @@ describe('MessagesController.findUnreadCount', () => {
     expect(service.findUnreadCount).toHaveBeenCalledTimes(1)
     expect(service.findUnreadCount).toHaveBeenCalledWith('user-1', 'conversation-1')
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       data: unreadCountResult.data,
     })
@@ -522,7 +522,7 @@ describe('MessagesController.findUnreadCount', () => {
 
     await controller.findUnreadCount(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Conversation ID is required',
     })
@@ -541,7 +541,7 @@ describe('MessagesController.findUnreadCount', () => {
 
     await controller.findUnreadCount(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.findUnreadCount).not.toHaveBeenCalled()
   })
 
@@ -575,7 +575,7 @@ describe('MessagesController.findUnreadCount', () => {
       'Count query failed',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 
   test('returns zero when there are no unread messages', async () => {
@@ -594,7 +594,7 @@ describe('MessagesController.findUnreadCount', () => {
 
     await controller.findUnreadCount(request as never, response as never)
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       data: { count: 0 },
     })
@@ -617,7 +617,7 @@ describe('MessagesController.delete', () => {
     expect(service.delete).toHaveBeenCalledTimes(1)
     expect(service.delete).toHaveBeenCalledWith('user-1', 'message-1')
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       message: deleteResult.message,
     })
@@ -632,13 +632,13 @@ describe('MessagesController.delete', () => {
 
     await controller.delete(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Message ID is required',
     })
 
     expect(service.delete).not.toHaveBeenCalled()
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 
   test('returns bad request when messageId is empty', async () => {
@@ -652,7 +652,7 @@ describe('MessagesController.delete', () => {
 
     await controller.delete(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.delete).not.toHaveBeenCalled()
   })
 
@@ -687,6 +687,6 @@ describe('MessagesController.delete', () => {
       'Delete failed',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 })
