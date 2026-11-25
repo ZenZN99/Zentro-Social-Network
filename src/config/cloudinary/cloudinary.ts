@@ -1,5 +1,5 @@
-import { CloudinaryManager } from '@riser-bob/cloudinary';
+import { CloudinaryManager } from '@lykosjs/cloudinary'
 
-const cloudinary = CloudinaryManager.fromEnv();
+const cloudinary = CloudinaryManager.fromEnv()
 
-export default cloudinary;
+export default cloudinary
