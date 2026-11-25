@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import {
-  SpongBadRequestException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-  SpongUnauthorizedException,
-} from 'riser-bob'
-import type { database } from '../../../config/db/drizzle'
+  BadRequestException,
+  InternalServerErrorException,
+  NotFoundException,
+  UnauthorizedException,
+} from 'lykosjs'
+import type { Database, database } from '../../../config/db/drizzle'
 import type { NotificationsService } from '../../notifications/notifications.service'
 import { NotificationType } from '../../notifications/schemas/enums/notification-type'
 import { LikeSchema } from '../schemas/like.schema'
@@ -179,7 +179,7 @@ describe('LikesService', () => {
     dependencies.notificationsService.create.mockImplementation(async () => undefined)
 
     service = new LikesService(
-      db as unknown as typeof database,
+      { connection: db } as unknown as Database,
       dependencies.notificationsService as unknown as NotificationsService,
     )
   })
@@ -189,14 +189,14 @@ describe('LikesService', () => {
       test('throws BadRequest when target type is empty', async () => {
         const error = await captureRejection(service.toggle(USER_ID, '', TARGET_ID))
 
-        expect(error).toBeInstanceOf(SpongBadRequestException)
+        expect(error).toBeInstanceOf(BadRequestException)
         expect(db.select).not.toHaveBeenCalled()
       })
 
       test('throws BadRequest when target type is invalid', async () => {
         const error = await captureRejection(service.toggle(USER_ID, 'user', TARGET_ID))
 
-        expect(error).toBeInstanceOf(SpongBadRequestException)
+        expect(error).toBeInstanceOf(BadRequestException)
         expect(db.select).not.toHaveBeenCalled()
       })
 
@@ -205,7 +205,7 @@ describe('LikesService', () => {
 
         const error = await captureRejection(service.toggle(USER_ID, 'post', TARGET_ID))
 
-        expect(error).toBeInstanceOf(SpongNotFoundException)
+        expect(error).toBeInstanceOf(NotFoundException)
         expect(db.select).toHaveBeenCalledTimes(1)
       })
 
@@ -214,7 +214,7 @@ describe('LikesService', () => {
 
         const error = await captureRejection(service.toggle(USER_ID, 'comment', TARGET_ID))
 
-        expect(error).toBeInstanceOf(SpongNotFoundException)
+        expect(error).toBeInstanceOf(NotFoundException)
       })
 
       test('throws NotFound when reply does not exist', async () => {
@@ -222,7 +222,7 @@ describe('LikesService', () => {
 
         const error = await captureRejection(service.toggle(USER_ID, 'reply', TARGET_ID))
 
-        expect(error).toBeInstanceOf(SpongNotFoundException)
+        expect(error).toBeInstanceOf(NotFoundException)
       })
 
       test('propagates target lookup errors', async () => {
@@ -239,7 +239,7 @@ describe('LikesService', () => {
 
         const error = await captureRejection(service.toggle(USER_ID, 'post', TARGET_ID))
 
-        expect(error).toBeInstanceOf(SpongUnauthorizedException)
+        expect(error).toBeInstanceOf(UnauthorizedException)
         expect(db.select).toHaveBeenCalledTimes(2)
       })
 
@@ -561,7 +561,7 @@ describe('LikesService', () => {
 
         const error = await captureRejection(service.toggle(USER_ID, 'post', TARGET_ID))
 
-        expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+        expect(error).toBeInstanceOf(InternalServerErrorException)
       })
 
       test('propagates existing like lookup errors', async () => {
@@ -603,14 +603,14 @@ describe('LikesService', () => {
     test('throws BadRequest when target type is empty', async () => {
       const error = await captureRejection(service.findAll(1, 50, 0, '', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.select).not.toHaveBeenCalled()
     })
 
     test('throws BadRequest when target type is invalid', async () => {
       const error = await captureRejection(service.findAll(1, 50, 0, 'user', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.select).not.toHaveBeenCalled()
     })
 
@@ -706,14 +706,14 @@ describe('LikesService', () => {
     test('throws BadRequest when target type is empty', async () => {
       const error = await captureRejection(service.findMe(USER_ID, '', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.select).not.toHaveBeenCalled()
     })
 
     test('throws BadRequest when target type is invalid', async () => {
       const error = await captureRejection(service.findMe(USER_ID, 'user', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.select).not.toHaveBeenCalled()
     })
 
@@ -805,14 +805,14 @@ describe('LikesService', () => {
     test('throws BadRequest when target type is empty', async () => {
       const error = await captureRejection(service.count('', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.select).not.toHaveBeenCalled()
     })
 
     test('throws BadRequest when target type is invalid', async () => {
       const error = await captureRejection(service.count('user', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.select).not.toHaveBeenCalled()
     })
 
@@ -871,7 +871,7 @@ describe('LikesService', () => {
 
       const error = await captureRejection(service.count('post', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongNotFoundException)
+      expect(error).toBeInstanceOf(NotFoundException)
     })
 
     test('throws NotFound when comment does not exist', async () => {
@@ -879,7 +879,7 @@ describe('LikesService', () => {
 
       const error = await captureRejection(service.count('comment', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongNotFoundException)
+      expect(error).toBeInstanceOf(NotFoundException)
     })
 
     test('throws NotFound when reply does not exist', async () => {
@@ -887,7 +887,7 @@ describe('LikesService', () => {
 
       const error = await captureRejection(service.count('reply', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongNotFoundException)
+      expect(error).toBeInstanceOf(NotFoundException)
     })
 
     test('propagates database errors', async () => {
@@ -904,14 +904,14 @@ describe('LikesService', () => {
     test('throws BadRequest when target type is empty', async () => {
       const error = await captureRejection(service.isLiked(USER_ID, '', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.select).not.toHaveBeenCalled()
     })
 
     test('throws BadRequest when target type is invalid', async () => {
       const error = await captureRejection(service.isLiked(USER_ID, 'user', TARGET_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.select).not.toHaveBeenCalled()
     })
 
