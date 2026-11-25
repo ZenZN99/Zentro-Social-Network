@@ -1,34 +1,28 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import { AuthMiddleware, bind, defineAuth, DIModule, Lykos, value } from 'lykosjs'
+import { NotificationsModule } from '../notifications/notifications.module'
+import { Database } from '../../config/db/drizzle'
+import { NotificationsService } from '../notifications/notifications.service'
+import { CommentsService } from './comments.service'
+import { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 import { CommentsController } from './comments.controller'
 import { CommentsRouter } from './comments.route'
-import { verifyUser } from '../../config/token/verify-user'
-import { CommentsService } from './comments.service'
-import { database } from '../../config/db/drizzle'
-import { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
-import type { Server } from 'socket.io'
-import { NotificationsGateway } from '../../config/gateways/notifications.gateway'
-import { NotificationsService } from '../notifications/notifications.service'
 
-export class CommentsModule {
-  register(bob: RiserBob, io: Server): void {
-    const notificationsGateway = new NotificationsGateway(io)
+export class CommentsModule extends DIModule {
+  override imports = [NotificationsModule]
+  override providers = [
+    Database,
+    bind(CommentsService, Database, NotificationsService),
+    UserActiveMiddleware,
+  ]
 
-    const notificationsService = new NotificationsService(database, notificationsGateway)
+  override controllers = [bind(CommentsController, CommentsService)]
+  override routers = [
+    bind(CommentsRouter, Lykos, CommentsController, AuthMiddleware, UserActiveMiddleware),
+  ]
 
-    const commentsService = new CommentsService(database, notificationsService)
-
-    const commentsController = new CommentsController(commentsService)
-
-    const authMiddleware = new AuthMiddleware(verifyUser, {
-      mode: 'cookie',
-      cookieName: 'accessToken',
-    })
-
-    const userActiveMiddleware = new UserActiveMiddleware()
-
-    const router = new CommentsRouter(bob, commentsController, authMiddleware, userActiveMiddleware)
-
-    router.register()
-  }
+  override auth = defineAuth({
+    verifier: CommentsController,
+    mode: 'cookie',
+    cookieName: 'accessToken',
+  })
 }
