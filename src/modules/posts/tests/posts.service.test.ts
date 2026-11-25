@@ -1,9 +1,8 @@
-
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import { SpongInternalServerErrorException, SpongNotFoundException } from 'riser-bob'
-import type { database } from '../../../config/db/drizzle'
+import { InternalServerErrorException, NotFoundException } from 'lykosjs'
+import type { Database, database } from '../../../config/db/drizzle'
 import type { PostsService as PostsServiceType } from '../posts.service'
 import { VisibilityStatus } from '../schemas/enums/visibility-status'
 import { NotificationType } from '../../notifications/schemas/enums/notification-type'
@@ -176,9 +175,7 @@ const makePostBase = () => ({
   updatedAt: new Date(),
 })
 
-const makePost = (
-  overrides: Partial<ReturnType<typeof makePostBase>> = {},
-) => ({
+const makePost = (overrides: Partial<ReturnType<typeof makePostBase>> = {}) => ({
   ...makePostBase(),
   ...overrides,
 })
@@ -199,10 +196,7 @@ const makeFile = (): File =>
     type: 'image/jpeg',
   })
 
-const makePostResult = (
-  post = makePost(),
-  overrides: Record<string, unknown> = {},
-) => ({
+const makePostResult = (post = makePost(), overrides: Record<string, unknown> = {}) => ({
   post,
   author: {
     id: USER_ID,
@@ -275,7 +269,7 @@ beforeEach(() => {
   dependencies = makeDependencies()
 
   service = new PostsService(
-    db as unknown as typeof database,
+    { connection: db } as unknown as Database,
     dependencies.postMentionsService as unknown as PostMentionsService,
     dependencies.hashtagsService as unknown as HashtagsService,
     dependencies.postHashtagsService as unknown as PostHashtagsService,
@@ -379,20 +373,16 @@ describe('PostsService.create', () => {
   test('wraps missing author errors', async () => {
     db.selectQueue.push(rows([]))
 
-    const error = await captureRejection(
-      service.create(USER_ID, body, makeFormData()),
-    )
+    const error = await captureRejection(service.create(USER_ID, body, makeFormData()))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(db.transaction).not.toHaveBeenCalled()
   })
 
   test('rejects invalid mentions before inserting the post', async () => {
     db.selectQueue.push(rows([makeUser()]))
 
-    dependencies.postMentionsService.findInvalidMentionIds.mockResolvedValueOnce([
-      'INVALID_USER',
-    ])
+    dependencies.postMentionsService.findInvalidMentionIds.mockResolvedValueOnce(['INVALID_USER'])
 
     const error = await captureRejection(
       service.create(
@@ -405,7 +395,7 @@ describe('PostsService.create', () => {
       ),
     )
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(tx.insert).not.toHaveBeenCalled()
   })
 
@@ -534,7 +524,7 @@ describe('PostsService.create', () => {
       ),
     )
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(tx.insert).not.toHaveBeenCalled()
   })
 
@@ -550,10 +540,7 @@ describe('PostsService.create', () => {
   })
 
   test('notifies followers after creating the post', async () => {
-    db.selectQueue.push(
-      rows([makeUser()]),
-      rows([{ followerId: OTHER_USER_ID }]),
-    )
+    db.selectQueue.push(rows([makeUser()]), rows([{ followerId: OTHER_USER_ID }]))
 
     tx.insertQueue.push(rows([makePost()]))
     tx.updateQueue.push(rows([]))
@@ -582,20 +569,16 @@ describe('PostsService.create', () => {
     db.selectQueue.push(rows([makeUser()]))
     tx.insertQueue.push(failing(new Error('Insert failed')))
 
-    const error = await captureRejection(
-      service.create(USER_ID, body, makeFormData([makeFile()])),
-    )
+    const error = await captureRejection(service.create(USER_ID, body, makeFormData([makeFile()])))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(destroyImage).toHaveBeenCalledWith('zentro/posts/test-image')
   })
 
   test('cleans uploaded images when author does not exist', async () => {
     db.selectQueue.push(rows([]))
 
-    await captureRejection(
-      service.create(USER_ID, body, makeFormData([makeFile()])),
-    )
+    await captureRejection(service.create(USER_ID, body, makeFormData([makeFile()])))
 
     expect(destroyImage).toHaveBeenCalledWith('zentro/posts/test-image')
   })
@@ -603,18 +586,13 @@ describe('PostsService.create', () => {
   test('wraps database errors', async () => {
     db.selectQueue.push(failing(new Error('Database unavailable')))
 
-    const error = await captureRejection(
-      service.create(USER_ID, body, makeFormData()),
-    )
+    const error = await captureRejection(service.create(USER_ID, body, makeFormData()))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
   })
 
   test('wraps notification errors after the post transaction', async () => {
-    db.selectQueue.push(
-      rows([makeUser()]),
-      rows([{ followerId: OTHER_USER_ID }]),
-    )
+    db.selectQueue.push(rows([makeUser()]), rows([{ followerId: OTHER_USER_ID }]))
 
     tx.insertQueue.push(rows([makePost()]))
     tx.updateQueue.push(rows([]))
@@ -623,11 +601,9 @@ describe('PostsService.create', () => {
       new Error('Notification service unavailable'),
     )
 
-    const error = await captureRejection(
-      service.create(USER_ID, body, makeFormData()),
-    )
+    const error = await captureRejection(service.create(USER_ID, body, makeFormData()))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(tx.insert).toHaveBeenCalledTimes(1)
   })
 })
@@ -802,12 +778,7 @@ describe('PostsService.findByUserId', () => {
   test('returns target user posts', async () => {
     const posts = [{ post: makePost() }]
 
-    db.selectQueue.push(
-      rows([{ id: OTHER_USER_ID }]),
-      rows([]),
-      rows(posts),
-      rows([{ total: 1 }]),
-    )
+    db.selectQueue.push(rows([{ id: OTHER_USER_ID }]), rows([]), rows(posts), rows([{ total: 1 }]))
 
     const result = await service.findByUserId(OTHER_USER_ID, USER_ID)
 
@@ -820,20 +791,14 @@ describe('PostsService.findByUserId', () => {
   test('throws when target user does not exist', async () => {
     db.selectQueue.push(rows([]))
 
-    const error = await captureRejection(
-      service.findByUserId(OTHER_USER_ID, USER_ID),
-    )
+    const error = await captureRejection(service.findByUserId(OTHER_USER_ID, USER_ID))
 
-    expect(error).toBeInstanceOf(SpongNotFoundException)
+    expect(error).toBeInstanceOf(NotFoundException)
     expect(db.select).toHaveBeenCalledTimes(1)
   })
 
   test('does not query follows for anonymous visitors', async () => {
-    db.selectQueue.push(
-      rows([{ id: OTHER_USER_ID }]),
-      rows([]),
-      rows([{ total: 0 }]),
-    )
+    db.selectQueue.push(rows([{ id: OTHER_USER_ID }]), rows([]), rows([{ total: 0 }]))
 
     await service.findByUserId(OTHER_USER_ID, '')
 
@@ -856,12 +821,7 @@ describe('PostsService.findByUserId', () => {
   test('allows all visibility levels when viewing own profile', async () => {
     const postsChain = rows([])
 
-    db.selectQueue.push(
-      rows([{ id: USER_ID }]),
-      rows([]),
-      postsChain,
-      rows([{ total: 0 }]),
-    )
+    db.selectQueue.push(rows([{ id: USER_ID }]), rows([]), postsChain, rows([{ total: 0 }]))
 
     await service.findByUserId(USER_ID, USER_ID)
 
@@ -894,12 +854,7 @@ describe('PostsService.findByUserId', () => {
   test('excludes private posts when viewing another user profile', async () => {
     const postsChain = rows([])
 
-    db.selectQueue.push(
-      rows([{ id: OTHER_USER_ID }]),
-      rows([]),
-      postsChain,
-      rows([{ total: 0 }]),
-    )
+    db.selectQueue.push(rows([{ id: OTHER_USER_ID }]), rows([]), postsChain, rows([{ total: 0 }]))
 
     await service.findByUserId(OTHER_USER_ID, USER_ID)
 
@@ -909,12 +864,7 @@ describe('PostsService.findByUserId', () => {
   test('excludes followers-only posts when visitor does not follow target', async () => {
     const postsChain = rows([])
 
-    db.selectQueue.push(
-      rows([{ id: OTHER_USER_ID }]),
-      rows([]),
-      postsChain,
-      rows([{ total: 0 }]),
-    )
+    db.selectQueue.push(rows([{ id: OTHER_USER_ID }]), rows([]), postsChain, rows([{ total: 0 }]))
 
     await service.findByUserId(OTHER_USER_ID, USER_ID)
 
@@ -924,12 +874,7 @@ describe('PostsService.findByUserId', () => {
   test('applies pagination', async () => {
     const postsChain = rows([])
 
-    db.selectQueue.push(
-      rows([{ id: OTHER_USER_ID }]),
-      rows([]),
-      postsChain,
-      rows([{ total: 0 }]),
-    )
+    db.selectQueue.push(rows([{ id: OTHER_USER_ID }]), rows([]), postsChain, rows([{ total: 0 }]))
 
     await service.findByUserId(OTHER_USER_ID, USER_ID, 2, 5, 5)
 
@@ -942,9 +887,7 @@ describe('PostsService.findByUserId', () => {
 
     db.selectQueue.push(failing(error))
 
-    const result = await captureRejection(
-      service.findByUserId(OTHER_USER_ID, USER_ID),
-    )
+    const result = await captureRejection(service.findByUserId(OTHER_USER_ID, USER_ID))
 
     expect(result).toBe(error)
   })
@@ -971,17 +914,13 @@ describe('PostsService.findOne', () => {
   test('throws when the post does not exist', async () => {
     db.selectQueue.push(rows([]))
 
-    const error = await captureRejection(
-      service.findOne(POST_ID, USER_ID),
-    )
+    const error = await captureRejection(service.findOne(POST_ID, USER_ID))
 
-    expect(error).toBeInstanceOf(SpongNotFoundException)
+    expect(error).toBeInstanceOf(NotFoundException)
   })
 
   test('allows the author to view their private post', async () => {
-    const post = makePostResult(
-      makePost({ visibility: VisibilityStatus.PRIVATE }),
-    )
+    const post = makePostResult(makePost({ visibility: VisibilityStatus.PRIVATE }))
 
     db.selectQueue.push(rows([post]))
 
@@ -992,24 +931,18 @@ describe('PostsService.findOne', () => {
   })
 
   test('hides private posts from other users', async () => {
-    const post = makePostResult(
-      makePost({ visibility: VisibilityStatus.PRIVATE }),
-    )
+    const post = makePostResult(makePost({ visibility: VisibilityStatus.PRIVATE }))
 
     db.selectQueue.push(rows([post]))
 
-    const error = await captureRejection(
-      service.findOne(POST_ID, OTHER_USER_ID),
-    )
+    const error = await captureRejection(service.findOne(POST_ID, OTHER_USER_ID))
 
-    expect(error).toBeInstanceOf(SpongNotFoundException)
+    expect(error).toBeInstanceOf(NotFoundException)
     expect(db.select).toHaveBeenCalledTimes(1)
   })
 
   test('allows the author to view their followers-only post', async () => {
-    const post = makePostResult(
-      makePost({ visibility: VisibilityStatus.FOLLOWERS }),
-    )
+    const post = makePostResult(makePost({ visibility: VisibilityStatus.FOLLOWERS }))
 
     db.selectQueue.push(rows([post]))
 
@@ -1020,14 +953,9 @@ describe('PostsService.findOne', () => {
   })
 
   test('allows a follower to view a followers-only post', async () => {
-    const post = makePostResult(
-      makePost({ visibility: VisibilityStatus.FOLLOWERS }),
-    )
+    const post = makePostResult(makePost({ visibility: VisibilityStatus.FOLLOWERS }))
 
-    db.selectQueue.push(
-      rows([post]),
-      rows([{ id: 'FOLLOW_1' }]),
-    )
+    db.selectQueue.push(rows([post]), rows([{ id: 'FOLLOW_1' }]))
 
     const result = await service.findOne(POST_ID, OTHER_USER_ID)
 
@@ -1036,55 +964,36 @@ describe('PostsService.findOne', () => {
   })
 
   test('hides followers-only posts from non-followers', async () => {
-    const post = makePostResult(
-      makePost({ visibility: VisibilityStatus.FOLLOWERS }),
-    )
+    const post = makePostResult(makePost({ visibility: VisibilityStatus.FOLLOWERS }))
 
-    db.selectQueue.push(
-      rows([post]),
-      rows([]),
-    )
+    db.selectQueue.push(rows([post]), rows([]))
 
-    const error = await captureRejection(
-      service.findOne(POST_ID, OTHER_USER_ID),
-    )
+    const error = await captureRejection(service.findOne(POST_ID, OTHER_USER_ID))
 
-    expect(error).toBeInstanceOf(SpongNotFoundException)
+    expect(error).toBeInstanceOf(NotFoundException)
   })
 
   test('hides followers-only posts from anonymous visitors', async () => {
-    const post = makePostResult(
-      makePost({ visibility: VisibilityStatus.FOLLOWERS }),
-    )
+    const post = makePostResult(makePost({ visibility: VisibilityStatus.FOLLOWERS }))
 
     db.selectQueue.push(rows([post]))
 
-    const error = await captureRejection(
-      service.findOne(POST_ID, ''),
-    )
+    const error = await captureRejection(service.findOne(POST_ID, ''))
 
-    expect(error).toBeInstanceOf(SpongNotFoundException)
+    expect(error).toBeInstanceOf(NotFoundException)
     expect(db.select).toHaveBeenCalledTimes(1)
   })
 
   test('uses the correct follower and author IDs', async () => {
-    const post = makePostResult(
-      makePost({ visibility: VisibilityStatus.FOLLOWERS }),
-    )
+    const post = makePostResult(makePost({ visibility: VisibilityStatus.FOLLOWERS }))
 
     const followChain = rows([{ id: 'FOLLOW_1' }])
 
-    db.selectQueue.push(
-      rows([post]),
-      followChain,
-    )
+    db.selectQueue.push(rows([post]), followChain)
 
     await service.findOne(POST_ID, OTHER_USER_ID)
 
-    expect(whereParams(followChain)).toEqual([
-      OTHER_USER_ID,
-      USER_ID,
-    ])
+    expect(whereParams(followChain)).toEqual([OTHER_USER_ID, USER_ID])
   })
 })
 
@@ -1097,10 +1006,7 @@ describe('PostsService.update', () => {
     content: 'Updated content',
   } as Parameters<PostsServiceType['update']>[2]
 
-  const prepareUpdate = (
-    existingPost = makePost(),
-    updatedPost = makePost(),
-  ) => {
+  const prepareUpdate = (existingPost = makePost(), updatedPost = makePost()) => {
     tx.selectQueue.push(rows([existingPost]))
     tx.updateQueue.push(rows([updatedPost]))
   }
@@ -1110,12 +1016,7 @@ describe('PostsService.update', () => {
 
     prepareUpdate(makePost(), updatedPost)
 
-    const result = await service.update(
-      USER_ID,
-      POST_ID,
-      body,
-      makeFormData(),
-    )
+    const result = await service.update(USER_ID, POST_ID, body, makeFormData())
 
     expect(result).toEqual({
       success: true,
@@ -1127,11 +1028,9 @@ describe('PostsService.update', () => {
   test('rejects updating a post not owned by the user', async () => {
     tx.selectQueue.push(rows([]))
 
-    const error = await captureRejection(
-      service.update(USER_ID, POST_ID, body, makeFormData()),
-    )
+    const error = await captureRejection(service.update(USER_ID, POST_ID, body, makeFormData()))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(tx.update).not.toHaveBeenCalled()
   })
 
@@ -1143,10 +1042,7 @@ describe('PostsService.update', () => {
 
     await service.update(USER_ID, POST_ID, body, makeFormData())
 
-    expect(whereParams(selectChain)).toEqual([
-      POST_ID,
-      USER_ID,
-    ])
+    expect(whereParams(selectChain)).toEqual([POST_ID, USER_ID])
   })
 
   test('does not upload images when no new files are supplied', async () => {
@@ -1212,12 +1108,7 @@ describe('PostsService.update', () => {
 
     const file = makeFile()
 
-    await service.update(
-      USER_ID,
-      POST_ID,
-      body,
-      makeFormData([file]),
-    )
+    await service.update(USER_ID, POST_ID, body, makeFormData([file]))
 
     expect(uploadImage).toHaveBeenCalledWith(file, 'zentro/posts')
 
@@ -1309,9 +1200,7 @@ describe('PostsService.update', () => {
       { hashtagId: 'HASH_2' },
     ])
 
-    dependencies.hashtagsService.findOrCreateMany.mockResolvedValueOnce([
-      { id: 'HASH_2' },
-    ])
+    dependencies.hashtagsService.findOrCreateMany.mockResolvedValueOnce([{ id: 'HASH_2' }])
 
     await service.update(
       USER_ID,
@@ -1332,9 +1221,7 @@ describe('PostsService.update', () => {
   test('attaches new hashtag relations', async () => {
     prepareUpdate()
 
-    dependencies.hashtagsService.findOrCreateMany.mockResolvedValueOnce([
-      { id: 'HASH_1' },
-    ])
+    dependencies.hashtagsService.findOrCreateMany.mockResolvedValueOnce([{ id: 'HASH_1' }])
 
     await service.update(
       USER_ID,
@@ -1356,9 +1243,7 @@ describe('PostsService.update', () => {
   test('validates mentions before replacing existing mentions', async () => {
     prepareUpdate()
 
-    dependencies.postMentionsService.findInvalidMentionIds.mockResolvedValueOnce([
-      'INVALID',
-    ])
+    dependencies.postMentionsService.findInvalidMentionIds.mockResolvedValueOnce(['INVALID'])
 
     const error = await captureRejection(
       service.update(
@@ -1372,7 +1257,7 @@ describe('PostsService.update', () => {
       ),
     )
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(dependencies.postMentionsService.detachAll).not.toHaveBeenCalled()
   })
 
@@ -1426,12 +1311,7 @@ describe('PostsService.update', () => {
     tx.selectQueue.push(rows([makePost()]))
     tx.updateQueue.push(rows([]))
 
-    const result = await service.update(
-      USER_ID,
-      POST_ID,
-      body,
-      makeFormData(),
-    )
+    const result = await service.update(USER_ID, POST_ID, body, makeFormData())
 
     expect(result).toEqual({
       success: true,
@@ -1444,15 +1324,10 @@ describe('PostsService.update', () => {
     tx.selectQueue.push(rows([]))
 
     const error = await captureRejection(
-      service.update(
-        USER_ID,
-        POST_ID,
-        body,
-        makeFormData([makeFile()]),
-      ),
+      service.update(USER_ID, POST_ID, body, makeFormData([makeFile()])),
     )
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(uploadImage).toHaveBeenCalledTimes(1)
     expect(destroyImage).toHaveBeenCalledWith('zentro/posts/test-image')
   })
@@ -1462,26 +1337,19 @@ describe('PostsService.update', () => {
     tx.updateQueue.push(failing(new Error('Update failed')))
 
     const error = await captureRejection(
-      service.update(
-        USER_ID,
-        POST_ID,
-        body,
-        makeFormData([makeFile()]),
-      ),
+      service.update(USER_ID, POST_ID, body, makeFormData([makeFile()])),
     )
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(destroyImage).toHaveBeenCalledWith('zentro/posts/test-image')
   })
 
   test('wraps update database errors', async () => {
     tx.selectQueue.push(failing(new Error('Database failure')))
 
-    const error = await captureRejection(
-      service.update(USER_ID, POST_ID, body, makeFormData()),
-    )
+    const error = await captureRejection(service.update(USER_ID, POST_ID, body, makeFormData()))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
   })
 })
 
@@ -1507,11 +1375,9 @@ describe('PostsService.delete', () => {
   test('rejects deleting a post not owned by the user', async () => {
     tx.selectQueue.push(rows([]))
 
-    const error = await captureRejection(
-      service.delete(USER_ID, POST_ID),
-    )
+    const error = await captureRejection(service.delete(USER_ID, POST_ID))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
     expect(dependencies.postMentionsService.detachAll).not.toHaveBeenCalled()
   })
 
@@ -1522,10 +1388,7 @@ describe('PostsService.delete', () => {
 
     await service.delete(USER_ID, POST_ID)
 
-    expect(whereParams(selectChain)).toEqual([
-      POST_ID,
-      USER_ID,
-    ])
+    expect(whereParams(selectChain)).toEqual([POST_ID, USER_ID])
   })
 
   test('deletes post mentions', async () => {
@@ -1570,10 +1433,7 @@ describe('PostsService.delete', () => {
 
     await service.delete(USER_ID, POST_ID)
 
-    expect(dependencies.postQuotesService.detach).toHaveBeenCalledWith(
-      POST_ID,
-      expect.anything(),
-    )
+    expect(dependencies.postQuotesService.detach).toHaveBeenCalledWith(POST_ID, expect.anything())
 
     expect(tx.update).toHaveBeenCalledTimes(2)
   })
@@ -1642,9 +1502,7 @@ describe('PostsService.delete', () => {
   test('does not delete Cloudinary images when transaction fails', async () => {
     tx.selectQueue.push(rows([]))
 
-    await captureRejection(
-      service.delete(USER_ID, POST_ID),
-    )
+    await captureRejection(service.delete(USER_ID, POST_ID))
 
     expect(destroyImage).not.toHaveBeenCalled()
   })
@@ -1672,10 +1530,8 @@ describe('PostsService.delete', () => {
   test('wraps database errors in an internal server exception', async () => {
     tx.selectQueue.push(failing(new Error('Database unavailable')))
 
-    const error = await captureRejection(
-      service.delete(USER_ID, POST_ID),
-    )
+    const error = await captureRejection(service.delete(USER_ID, POST_ID))
 
-    expect(error).toBeInstanceOf(SpongInternalServerErrorException)
+    expect(error).toBeInstanceOf(InternalServerErrorException)
   })
 })
