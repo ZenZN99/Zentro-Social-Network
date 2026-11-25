@@ -2,7 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import type { NodePgTransaction } from 'drizzle-orm/node-postgres'
 import type { ExtractTablesWithRelations } from 'drizzle-orm'
 import { PostHashtagSchema } from './schemas/post-hashtag.schema'
-import type { database } from '../../../config/db/drizzle'
+import type { Database } from '../../../config/db/drizzle'
 
 type Transaction = NodePgTransaction<
   Record<string, never>,
@@ -10,14 +10,14 @@ type Transaction = NodePgTransaction<
 >
 
 export class PostHashtagsService {
-  constructor(private readonly db: typeof database) {}
+  constructor(private readonly db: Database) {}
 
   async attachMany(postId: string, hashtagIds: string[], transaction?: Transaction) {
     if (!hashtagIds.length) return []
 
     const uniqueIds = [...new Set(hashtagIds)]
 
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     return db
       .insert(PostHashtagSchema)
@@ -36,7 +36,7 @@ export class PostHashtagsService {
   async detachMany(postId: string, hashtagIds: string[], transaction?: Transaction) {
     if (!hashtagIds.length) return 0
 
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const deleted = await db
       .delete(PostHashtagSchema)
@@ -49,7 +49,7 @@ export class PostHashtagsService {
   }
 
   async detachAll(postId: string, transaction?: Transaction): Promise<number> {
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     const deleted = await db
       .delete(PostHashtagSchema)
@@ -60,7 +60,7 @@ export class PostHashtagsService {
   }
 
   async findByPostId(postId: string, transaction?: Transaction) {
-    const db = transaction ?? this.db
+    const db = transaction ?? this.db.connection
 
     return db.select().from(PostHashtagSchema).where(eq(PostHashtagSchema.postId, postId))
   }
