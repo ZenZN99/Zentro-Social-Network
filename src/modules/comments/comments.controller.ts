@@ -1,28 +1,29 @@
-import { Validator, type SpongHandler } from 'riser-bob'
 import { CreateCommentRule } from './rules/create'
 import type { CommentsService } from './comments.service'
 import { getPagination } from '../../utilities/pagination'
 import { UpdateCommentRule } from './rules/update'
+import { Validator, type ContextHandler } from 'lykosjs'
+import { verifyUser } from '../../config/token/verify-user'
 
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
-  readonly create: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly create: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { postId } = spongReq.params
+    const { postId } = ctx.params
 
     if (!postId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Post ID is required',
       })
     }
 
-    const { content } = await spongReq.json<{ content: string }>()
+    const { content } = await ctx.json<{ content: string }>()
     const validation = Validator.validate({ content }, CreateCommentRule)
 
     if (!validation.valid) {
-      return spongRes.SpongUnprocessableContent({
+      return reply.UnprocessableContent({
         success: false,
         message: 'validation failed',
         errors: validation.errors,
@@ -31,28 +32,28 @@ export class CommentsController {
 
     const result = await this.commentsService.create(userId, postId, content)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result.success,
       message: result.message,
       data: result.data,
     })
   }
 
-  readonly findAll: SpongHandler = async (spongReq, spongRes) => {
-    const { postId } = spongReq.params
+  readonly findAll: ContextHandler = async (ctx, reply) => {
+    const { postId } = ctx.params
 
     if (!postId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Post ID is required',
       })
     }
 
-    const { page, limit, offset } = getPagination(spongReq)
+    const { page, limit, offset } = getPagination(ctx)
 
     const result = await this.commentsService.findAll(postId, page, limit, offset)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: {
         comments: result.data,
@@ -61,14 +62,14 @@ export class CommentsController {
     })
   }
 
-  readonly findMe: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly findMe: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { page, limit, offset } = getPagination(spongReq)
+    const { page, limit, offset } = getPagination(ctx)
 
     const result = await this.commentsService.findMe(userId, page, limit, offset)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: {
         comments: result.data,
@@ -77,11 +78,11 @@ export class CommentsController {
     })
   }
 
-  readonly findOne: SpongHandler = async (spongReq, spongRes) => {
-    const { commentId } = spongReq.params
+  readonly findOne: ContextHandler = async (ctx, reply) => {
+    const { commentId } = ctx.params
 
     if (!commentId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Comment ID is required',
       })
@@ -89,29 +90,29 @@ export class CommentsController {
 
     const result = await this.commentsService.findOne(commentId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly update: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly update: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { commentId } = spongReq.params
+    const { commentId } = ctx.params
 
     if (!commentId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Comment ID is required',
       })
     }
 
-    const { content } = await spongReq.json<{ content: string }>()
+    const { content } = await ctx.json<{ content: string }>()
     const validation = Validator.validate({ content }, UpdateCommentRule)
 
     if (!validation.valid) {
-      return spongRes.SpongUnprocessableContent({
+      return reply.UnprocessableContent({
         success: false,
         message: 'validation failed',
         errors: validation.errors,
@@ -120,20 +121,20 @@ export class CommentsController {
 
     const result = await this.commentsService.update(userId, commentId, content)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
       data: result.data,
     })
   }
 
-  readonly delete: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly delete: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
-    const { commentId } = spongReq.params
+    const { commentId } = ctx.params
 
     if (!commentId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Comment ID is required',
       })
@@ -141,9 +142,13 @@ export class CommentsController {
 
     const result = await this.commentsService.delete(userId, commentId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
     })
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
