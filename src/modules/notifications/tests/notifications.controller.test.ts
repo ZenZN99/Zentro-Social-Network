@@ -40,15 +40,15 @@ function createService() {
 
 function createResponse() {
   return {
-    SpongCreated: mock((payload: unknown) => ({
+    Created: mock((payload: unknown) => ({
       status: 201,
       payload,
     })),
-    SpongOK: mock((payload: unknown) => ({
+    OK: mock((payload: unknown) => ({
       status: 200,
       payload,
     })),
-    SpongBadRequest: mock((payload: unknown) => ({
+    BadRequest: mock((payload: unknown) => ({
       status: 400,
       payload,
     })),
@@ -111,7 +111,7 @@ describe('NotificationsController.create', () => {
     expect(service.create).toHaveBeenCalledTimes(1)
     expect(service.create).toHaveBeenCalledWith(body)
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: true,
       data: createResult.data,
     })
@@ -178,7 +178,7 @@ describe('NotificationsController.create', () => {
 
     await controller.create(request as never, response as never)
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: undefined,
       data: undefined,
     })
@@ -195,7 +195,7 @@ describe('NotificationsController.create', () => {
     )
 
     expect(service.create).not.toHaveBeenCalled()
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('propagates service errors', async () => {
@@ -208,7 +208,7 @@ describe('NotificationsController.create', () => {
       'Database error',
     )
 
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('currently accepts senderId and receiverId directly from the request body', async () => {
@@ -244,7 +244,7 @@ describe('NotificationsController.findMe', () => {
     expect(service.findMe).toHaveBeenCalledTimes(1)
     expect(service.findMe).toHaveBeenCalledWith('receiver-1')
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: true,
       data: findMeResult.data,
     })
@@ -275,7 +275,7 @@ describe('NotificationsController.findMe', () => {
 
     await controller.findMe(request as never, response as never)
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: true,
       data: [],
     })
@@ -291,7 +291,7 @@ describe('NotificationsController.findMe', () => {
       'Failed to fetch notifications',
     )
 
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 })
 
@@ -309,7 +309,7 @@ describe('NotificationsController.markAsRead', () => {
     expect(service.markAsRead).toHaveBeenCalledTimes(1)
     expect(service.markAsRead).toHaveBeenCalledWith('receiver-1', 'notification-1')
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: true,
       message: markAsReadResult.message,
       data: markAsReadResult.data,
@@ -322,13 +322,13 @@ describe('NotificationsController.markAsRead', () => {
 
     await controller.markAsRead(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Notification ID is required',
     })
 
     expect(service.markAsRead).not.toHaveBeenCalled()
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('returns bad request when notificationId is empty', async () => {
@@ -340,7 +340,7 @@ describe('NotificationsController.markAsRead', () => {
 
     await controller.markAsRead(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.markAsRead).not.toHaveBeenCalled()
   })
 
@@ -373,7 +373,7 @@ describe('NotificationsController.markAsRead', () => {
       'Update failed',
     )
 
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 })
 
@@ -390,7 +390,7 @@ describe('NotificationsController.markAllAsRead', () => {
     expect(service.markAllAsRead).toHaveBeenCalledTimes(1)
     expect(service.markAllAsRead).toHaveBeenCalledWith('receiver-1')
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: true,
       message: markAllAsReadResult.message,
     })
@@ -420,7 +420,7 @@ describe('NotificationsController.markAllAsRead', () => {
       'Bulk update failed',
     )
 
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 })
 
@@ -438,7 +438,7 @@ describe('NotificationsController.delete', () => {
     expect(service.delete).toHaveBeenCalledTimes(1)
     expect(service.delete).toHaveBeenCalledWith('receiver-1', 'notification-1')
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: true,
       message: deleteResult.message,
     })
@@ -450,13 +450,13 @@ describe('NotificationsController.delete', () => {
 
     await controller.delete(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Notification ID is required',
     })
 
     expect(service.delete).not.toHaveBeenCalled()
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('returns bad request when notificationId is empty', async () => {
@@ -468,7 +468,7 @@ describe('NotificationsController.delete', () => {
 
     await controller.delete(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.delete).not.toHaveBeenCalled()
   })
 
@@ -501,6 +501,6 @@ describe('NotificationsController.delete', () => {
       'Delete failed',
     )
 
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 })
