@@ -38,8 +38,11 @@ const getUsers = (userId: string) => {
  * NotificationSocketGateway.
  */
 export class NotificationsGateway {
-  constructor(private readonly server: Server) {}
+  private static server: Server | null = null
 
+  static setServer(server: Server) {
+    NotificationsGateway.server = server
+  }
   // On connect
   handleConnection(client: Socket) {
     const user = client.data.user
@@ -67,6 +70,11 @@ export class NotificationsGateway {
   // NOTE: notification must be the FULL notification record.
   // It must contain `id` at the root and the populated `sender`.
   sendNotification(notification: { id: string; receiverId: string; [key: string]: any }) {
+    const server = NotificationsGateway.server
+    if (!server) {
+      console.warn('⚠️ NotificationGateway: server not set yet')
+      return
+    }
     const receivers = getUsers(notification.receiverId)
 
     console.log('📤 Sending notification to:', notification.receiverId)
@@ -78,25 +86,25 @@ export class NotificationsGateway {
     }
 
     receivers.forEach((user) => {
-      this.server.to(user.socketId).emit('receive-notification', notification)
+      server.to(user.socketId).emit('receive-notification', notification)
     })
   }
 
   sendMarkAsRead(receiverId: string, notificationId: string) {
-    const receivers = getUsers(receiverId)
+    const server = NotificationsGateway.server
+    if (!server) return
 
-    receivers.forEach((user) => {
-      this.server.to(user.socketId).emit('notification-read', {
-        notificationId,
-      })
+    getUsers(receiverId).forEach((user) => {
+      server.to(user.socketId).emit('notification-read', { notificationId })
     })
   }
 
   sendMarkAllAsRead(receiverId: string) {
-    const receivers = getUsers(receiverId)
+    const server = NotificationsGateway.server
+    if (!server) return
 
-    receivers.forEach((user) => {
-      this.server.to(user.socketId).emit('notifications-marked-as-read')
+    getUsers(receiverId).forEach((user) => {
+      server.to(user.socketId).emit('notifications-marked-as-read')
     })
   }
 }
