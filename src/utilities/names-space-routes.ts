@@ -1,4 +1,4 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
 
 export function namespaceRoutes(prefix: string, routes: Record<string, OpenAPIRoute>) {
   return Object.fromEntries(
