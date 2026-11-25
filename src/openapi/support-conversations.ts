@@ -1,5 +1,5 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
+import { Validator } from 'lykosjs'
 
 export const supportConversationsAPI = {
   create: {
@@ -34,8 +34,8 @@ export const supportConversationsAPI = {
     security: ['CookieAuth'],
     request: {
       query: {
-        page: rules(['nullable', 'string']),
-        limit: rules(['nullable', 'string']),
+        page: Validator.text().optional(),
+        limit: Validator.text().optional(),
       },
     },
 
@@ -74,7 +74,7 @@ export const supportConversationsAPI = {
 
     request: {
       params: {
-        conversationId: rules(['required', 'string']),
+        conversationId: Validator.text().required(),
       },
     },
 
@@ -102,7 +102,7 @@ export const supportConversationsAPI = {
 
     request: {
       params: {
-        conversationId: rules(['required', 'string']),
+        conversationId: Validator.text().required(),
       },
     },
 
