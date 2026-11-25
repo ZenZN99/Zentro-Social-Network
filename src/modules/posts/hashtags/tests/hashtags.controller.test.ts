@@ -16,7 +16,7 @@ const makeRequest = (overrides: Record<string, unknown> = {}) => ({
 })
 
 const makeResponse = () => ({
-  SpongOK: mock((..._args: unknown[]) => ({
+  OK: mock((..._args: unknown[]) => ({
     status: 200,
   })),
 })
@@ -93,8 +93,8 @@ describe('HashtagsController.findTrending', () => {
 
     await invokeFindTrending(req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledTimes(1)
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledTimes(1)
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       data: result,
     })
@@ -148,7 +148,7 @@ describe('HashtagsController.findTrending', () => {
 
     await invokeFindTrending(req, res)
 
-    expect(res.SpongOK).toHaveBeenCalledWith({
+    expect(res.OK).toHaveBeenCalledWith({
       success: true,
       data: result,
     })
@@ -173,7 +173,7 @@ describe('HashtagsController.findTrending', () => {
 
     await invokeFindTrending(req, res)
 
-    const response = res.SpongOK.mock.calls[0]?.[0]
+    const response = res.OK.mock.calls[0]?.[0]
 
     expect(response).toEqual({
       success: true,
@@ -182,12 +182,12 @@ describe('HashtagsController.findTrending', () => {
     expect(response).not.toHaveProperty('pagination', result.pagination)
   })
 
-  test('returns the result of SpongOK', async () => {
+  test('returns the result of OK', async () => {
     const responseResult = { status: 200, body: 'OK' }
     const req = makeRequest()
 
     const res = {
-      SpongOK: mock(() => responseResult),
+      OK: mock(() => responseResult),
     }
 
     const result = await invokeFindTrending(req, res)
@@ -205,7 +205,7 @@ describe('HashtagsController.findTrending', () => {
 
     await expect(invokeFindTrending(req, res)).rejects.toBe(failure)
 
-    expect(res.SpongOK).not.toHaveBeenCalled()
+    expect(res.OK).not.toHaveBeenCalled()
   })
 
   test('does not call the service more than once', async () => {
