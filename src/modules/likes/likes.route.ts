@@ -1,11 +1,10 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { LikesController } from './likes.controller'
 import type { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 
 export class LikesRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: LikesController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly userActiveMiddleware: UserActiveMiddleware,
@@ -13,17 +12,17 @@ export class LikesRouter {
 
   register(): void {
     // Public routes
-    this.bob.spongGroup('/api/likes', (group) => {
-      group.spongGet('/count/:targetType/:targetId', this.controller.count)
+    this.app.group('/api/likes', (guest) => {
+      guest.GET('/count/:targetType/:targetId', this.controller.count)
 
       // Protected routes
-      group.spongGroup(
+      guest.group(
         '/',
         (group) => {
-          group.spongPost('/:targetType/:targetId', this.controller.toggle)
-          group.spongGet('/:targetType/:targetId', this.controller.findAll)
-          group.spongGet('/me/:targetType/:targetId', this.controller.findMe)
-          group.spongGet('/is-liked/:targetType/:targetId', this.controller.isLiked)
+          group.POST('/:targetType/:targetId', this.controller.toggle)
+          group.GET('/:targetType/:targetId', this.controller.findAll)
+          group.GET('/me/:targetType/:targetId', this.controller.findMe)
+          group.GET('/is-liked/:targetType/:targetId', this.controller.isLiked)
         },
         this.authMiddleware.middleware,
         this.userActiveMiddleware.middleware,
