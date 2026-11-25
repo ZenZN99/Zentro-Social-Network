@@ -1,5 +1,4 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { ConversationsController } from './conversations.controller'
 import type { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 import type { RolesMiddleware } from '../../config/middlewares/roles.middleware'
@@ -7,7 +6,7 @@ import { ProtectedMiddleware } from '../../config/middlewares/protected.middlewa
 
 export class ConversationsRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: ConversationsController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly userMiddleware: UserActiveMiddleware,
@@ -22,12 +21,12 @@ export class ConversationsRouter {
     )
 
     // Protected routes
-    this.bob.spongGroup(
+    this.app.group(
       '/api/conversations',
-      (group) => {
-        group.spongGet('/me', this.controller.findMe)
-        group.spongGet('/:conversationId', this.controller.findOne)
-        group.spongPatch('/:conversationId', this.controller.mute)
+      (auth) => {
+        auth.GET('/me', this.controller.findMe)
+        auth.GET('/:conversationId', this.controller.findOne)
+        auth.PATCH('/:conversationId', this.controller.mute)
       },
       protectedMiddleware.auth(),
     )
