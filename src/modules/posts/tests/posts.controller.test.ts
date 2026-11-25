@@ -1,24 +1,31 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test'
+import { Validator } from 'lykosjs'
 import type { PostsService } from '../posts.service'
 import type { CreatePostBody, UpdatePostBody } from '../posts.controller'
 
-const validate = mock((_body: unknown, _rule: unknown): { valid: boolean; errors?: unknown[] } => ({
-  valid: true,
-}))
+type ValidationResult = ReturnType<typeof Validator.validate>
 
-const getPagination = mock(() => ({
-  page: 1,
-  limit: 10,
-  offset: 0,
-}))
+const validResult = { valid: true, errors: {} } as unknown as ValidationResult
+const invalidResult = (errors: unknown): ValidationResult =>
+  ({ valid: false, errors }) as unknown as ValidationResult
 
-mock.module('riser-bob', () => ({
-  Validator: { validate },
-}))
+const validate = spyOn(Validator, 'validate')
 
-mock.module('../../../utilities/pagination', () => ({
-  getPagination,
-}))
+const PAGINATION_MODULE = '../../../utilities/pagination'
+// Copy the real module BEFORE mocking so it can be restored (mock.module leaks across files).
+const realPagination = { ...(await import('../../../utilities/pagination')) }
+
+const getPagination = mock(
+  (..._args: Parameters<typeof realPagination.getPagination>) =>
+    ({ page: 1, limit: 10, offset: 0 }) as ReturnType<typeof realPagination.getPagination>,
+)
+
+mock.module(PAGINATION_MODULE, () => ({ ...realPagination, getPagination }))
+
+afterAll(() => {
+  validate.mockRestore()
+  mock.module(PAGINATION_MODULE, () => realPagination)
+})
 
 const { PostsController } = await import('../posts.controller')
 
@@ -69,19 +76,19 @@ function createService() {
 
 function createResponse() {
   return {
-    SpongCreated: mock((payload: unknown) => ({
+    Created: mock((payload: unknown) => ({
       status: 201,
       payload,
     })),
-    SpongOK: mock((payload: unknown) => ({
+    OK: mock((payload: unknown) => ({
       status: 200,
       payload,
     })),
-    SpongBadRequest: mock((payload: unknown) => ({
+    BadRequest: mock((payload: unknown) => ({
       status: 400,
       payload,
     })),
-    SpongUnprocessableContent: mock((payload: unknown) => ({
+    UnprocessableContent: mock((payload: unknown) => ({
       status: 422,
       payload,
     })),
@@ -115,7 +122,14 @@ function setup() {
 
 beforeEach(() => {
   validate.mockClear()
-  validate.mockImplementation(() => ({ valid: true }))
+  validate.mockImplementation(
+    (data) =>
+      ({
+        valid: true,
+        data,
+        errors: {},
+      }) as never,
+  )
 
   getPagination.mockClear()
   getPagination.mockImplementation(() => ({
@@ -149,7 +163,7 @@ describe('PostsController.create', () => {
     expect(service.create).toHaveBeenCalledTimes(1)
     expect(service.create).toHaveBeenCalledWith('user-1', body, expect.any(FormData))
 
-    expect(response.SpongCreated).toHaveBeenCalledWith({
+    expect(response.Created).toHaveBeenCalledWith({
       success: true,
       message: createResult.message,
       data: createResult.data,
@@ -160,7 +174,9 @@ describe('PostsController.create', () => {
     const { controller, service, response } = setup()
     const request = createRequest({ body })
 
-    const errors = [{ field: 'content', message: 'Content is required' }]
+    const errors = {
+      content: ['Content is required'],
+    }
 
     validate.mockImplementation(() => ({
       valid: false,
@@ -169,7 +185,7 @@ describe('PostsController.create', () => {
 
     await controller.create(request as never, response as never)
 
-    expect(response.SpongUnprocessableContent).toHaveBeenCalledWith({
+    expect(response.UnprocessableContent).toHaveBeenCalledWith({
       success: false,
       message: 'validation failed',
       errors,
@@ -177,7 +193,7 @@ describe('PostsController.create', () => {
 
     expect(request.formData).not.toHaveBeenCalled()
     expect(service.create).not.toHaveBeenCalled()
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('does not call formData when JSON parsing fails', async () => {
@@ -217,7 +233,7 @@ describe('PostsController.create', () => {
       'Database failure',
     )
 
-    expect(response.SpongCreated).not.toHaveBeenCalled()
+    expect(response.Created).not.toHaveBeenCalled()
   })
 
   test('passes the authenticated user ID to the service', async () => {
@@ -242,7 +258,7 @@ describe('PostsController.findAll', () => {
 
     expect(service.findAll).toHaveBeenCalledWith('user-1', 1, 10, 0)
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       data: {
         posts: findResult.posts,
@@ -286,7 +302,7 @@ describe('PostsController.findAll', () => {
       'Query failed',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 })
 
@@ -299,7 +315,7 @@ describe('PostsController.findMe', () => {
 
     expect(service.findMe).toHaveBeenCalledWith('user-1', 1, 10, 0)
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       data: {
         posts: findResult.posts,
@@ -333,7 +349,7 @@ describe('PostsController.findMe', () => {
       'Database unavailable',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 })
 
@@ -344,7 +360,7 @@ describe('PostsController.findByUserId', () => {
 
     await controller.findByUserId(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'User ID is required',
     })
@@ -361,7 +377,7 @@ describe('PostsController.findByUserId', () => {
 
     await controller.findByUserId(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.findByUserId).not.toHaveBeenCalled()
   })
 
@@ -385,7 +401,7 @@ describe('PostsController.findByUserId', () => {
 
     await controller.findByUserId(request as never, response as never)
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       data: {
         posts: findResult.posts,
@@ -417,7 +433,7 @@ describe('PostsController.findByUserId', () => {
       'Target user not found',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 })
 
@@ -428,7 +444,7 @@ describe('PostsController.findOne', () => {
 
     await controller.findOne(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Post ID is required',
     })
@@ -444,7 +460,7 @@ describe('PostsController.findOne', () => {
 
     await controller.findOne(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.findOne).not.toHaveBeenCalled()
   })
 
@@ -459,7 +475,7 @@ describe('PostsController.findOne', () => {
 
     expect(service.findOne).toHaveBeenCalledWith('viewer-1', 'post-1')
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       data: findOneResult.data,
     })
@@ -477,7 +493,7 @@ describe('PostsController.findOne', () => {
       'Post not found',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 })
 
@@ -506,7 +522,7 @@ describe('PostsController.update', () => {
 
     expect(service.update).toHaveBeenCalledWith('user-1', 'post-1', body, expect.any(FormData))
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       message: updateResult.message,
       data: updateResult.data,
@@ -519,7 +535,7 @@ describe('PostsController.update', () => {
 
     await controller.update(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Post ID is required',
     })
@@ -537,7 +553,9 @@ describe('PostsController.update', () => {
       body,
     })
 
-    const errors = [{ field: 'content', message: 'Invalid content' }]
+    const errors = {
+      content: ['Content is required'],
+    }
 
     validate.mockImplementation(() => ({
       valid: false,
@@ -546,7 +564,7 @@ describe('PostsController.update', () => {
 
     await controller.update(request as never, response as never)
 
-    expect(response.SpongUnprocessableContent).toHaveBeenCalledWith({
+    expect(response.UnprocessableContent).toHaveBeenCalledWith({
       success: false,
       message: 'validation failed',
       errors,
@@ -554,7 +572,7 @@ describe('PostsController.update', () => {
 
     expect(request.formData).not.toHaveBeenCalled()
     expect(service.update).not.toHaveBeenCalled()
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 
   test('does not call service when JSON parsing fails', async () => {
@@ -603,7 +621,7 @@ describe('PostsController.update', () => {
       'Update failed',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 
   test('passes the correct user ID to the service', async () => {
@@ -631,7 +649,7 @@ describe('PostsController.delete', () => {
 
     expect(service.delete).toHaveBeenCalledWith('user-1', 'post-1')
 
-    expect(response.SpongOK).toHaveBeenCalledWith({
+    expect(response.OK).toHaveBeenCalledWith({
       success: true,
       message: deleteResult.message,
     })
@@ -643,7 +661,7 @@ describe('PostsController.delete', () => {
 
     await controller.delete(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledWith({
+    expect(response.BadRequest).toHaveBeenCalledWith({
       success: false,
       message: 'Post ID is required',
     })
@@ -659,7 +677,7 @@ describe('PostsController.delete', () => {
 
     await controller.delete(request as never, response as never)
 
-    expect(response.SpongBadRequest).toHaveBeenCalledTimes(1)
+    expect(response.BadRequest).toHaveBeenCalledTimes(1)
     expect(service.delete).not.toHaveBeenCalled()
   })
 
@@ -675,6 +693,6 @@ describe('PostsController.delete', () => {
       'Delete failed',
     )
 
-    expect(response.SpongOK).not.toHaveBeenCalled()
+    expect(response.OK).not.toHaveBeenCalled()
   })
 })
