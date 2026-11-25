@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import { SpongBadRequestException } from 'riser-bob'
-import type { database } from '../../../../config/db/drizzle'
+import { BadRequestException } from 'lykosjs'
+import type { Database, database } from '../../../../config/db/drizzle'
 import { PostQuotesService } from '../post-quotes.service'
 
 /* -------------------------------------------------------------------------- */
@@ -110,7 +110,7 @@ let service: PostQuotesService
 beforeEach(() => {
   db = createFakeDb()
   transaction = createFakeDb()
-  service = new PostQuotesService(db as unknown as typeof database)
+  service = new PostQuotesService({ connection: db } as unknown as Database)
 })
 
 const asTransaction = (fake: FakeDb): Transaction => fake as unknown as Transaction
@@ -185,12 +185,12 @@ describe('PostQuotesService.attach', () => {
     )
   })
 
-  // HARDENING — the service imports SpongBadRequestException but never uses it: validation is missing.
+  // HARDENING — the service imports BadRequestException but never uses it: validation is missing.
   describe('hardening (EXPECTED TO FAIL until the service is fixed)', () => {
     test('rejects a post that quotes itself', async () => {
       const error = await captureRejection(service.attach(POST_ID, POST_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
       expect(db.insert).not.toHaveBeenCalled()
     })
 
@@ -203,7 +203,7 @@ describe('PostQuotesService.attach', () => {
       test(`rejects blank ids (postId=${JSON.stringify(postId)}, quotedPostId=${JSON.stringify(quotedPostId)})`, async () => {
         const error = await captureRejection(service.attach(postId, quotedPostId))
 
-        expect(error).toBeInstanceOf(SpongBadRequestException)
+        expect(error).toBeInstanceOf(BadRequestException)
         expect(db.insert).not.toHaveBeenCalled()
       })
     }
@@ -214,7 +214,7 @@ describe('PostQuotesService.attach', () => {
 
       const error = await captureRejection(service.attach(POST_ID, QUOTED_POST_ID))
 
-      expect(error).toBeInstanceOf(SpongBadRequestException)
+      expect(error).toBeInstanceOf(BadRequestException)
     })
   })
 })
