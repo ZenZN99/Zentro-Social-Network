@@ -1,4 +1,4 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
 import { LoginAuthRule } from '../modules/auth/rules/login'
 import { RegisterAuthRule } from '../modules/auth/rules/register'
 
