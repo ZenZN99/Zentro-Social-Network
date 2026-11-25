@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from 'bun:test'
-import type { SpongHandler } from 'riser-bob'
 import type { AuthService, LoginBody, RegisterBody } from '../auth.service'
 import type { User } from '../../users/schemas/user.schema'
+import type { ContextHandler } from 'lykosjs'
 
 const registerBody: RegisterBody = {
   firstName: 'Zen',
@@ -95,7 +95,7 @@ const createRequest = (
 })
 
 const createResponse = () => ({
-  SpongOK: mock((body: unknown) => ({
+  OK: mock((body: unknown) => ({
     status: 200,
     body,
   })),
@@ -105,7 +105,7 @@ const createController = (service: MockService) =>
   new AuthController(service as unknown as AuthService)
 
 const invoke = (
-  handler: SpongHandler,
+  handler: ContextHandler,
   request: ReturnType<typeof createRequest>,
   response: ReturnType<typeof createResponse>,
 ) => handler(request as never, response as never)
@@ -131,7 +131,7 @@ describe('AuthController', () => {
       expect(service.register).toHaveBeenCalledWith(registerBody, request)
 
       expect(result).toBe(registerResponse)
-      expect(response.SpongOK).not.toHaveBeenCalled()
+      expect(response.OK).not.toHaveBeenCalled()
     })
 
     test('should propagate service errors', async () => {
@@ -179,7 +179,7 @@ describe('AuthController', () => {
       expect(service.login).toHaveBeenCalledWith(loginBody, request)
 
       expect(result).toBe(loginResponse)
-      expect(response.SpongOK).not.toHaveBeenCalled()
+      expect(response.OK).not.toHaveBeenCalled()
     })
 
     test('should propagate service errors', async () => {
@@ -222,7 +222,7 @@ describe('AuthController', () => {
 
       expect(service.logout).toHaveBeenCalledWith(request)
       expect(result).toBe(logoutResponse)
-      expect(response.SpongOK).not.toHaveBeenCalled()
+      expect(response.OK).not.toHaveBeenCalled()
     })
 
     test('should propagate service errors', async () => {
@@ -253,13 +253,13 @@ describe('AuthController', () => {
 
       const response = createResponse()
 
-      response.SpongOK.mockImplementation((data) => Response.json(data, { status: 200 }))
+      response.OK.mockImplementation((data) => Response.json(data, { status: 200 }))
 
       const result = await invoke(controller.me, request, response)
 
       expect(service.me).toHaveBeenCalledWith(currentUser)
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           id: 'user-id',
@@ -307,13 +307,13 @@ describe('AuthController', () => {
       const controller = createController(service)
       const response = createResponse()
 
-      response.SpongOK.mockImplementation((data) => Response.json(data, { status: 200 }))
+      response.OK.mockImplementation((data) => Response.json(data, { status: 200 }))
 
       const result = await invoke(controller.me, createRequest(), response)
 
       expect(service.me).toHaveBeenCalled()
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           id: 'user-id',
@@ -375,7 +375,7 @@ describe('AuthController', () => {
 
       expect(service.refreshToken).toHaveBeenCalledWith(request)
       expect(result).toBe(refreshResponse)
-      expect(response.SpongOK).not.toHaveBeenCalled()
+      expect(response.OK).not.toHaveBeenCalled()
     })
 
     test('should propagate service errors', async () => {
