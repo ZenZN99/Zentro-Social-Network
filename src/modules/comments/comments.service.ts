@@ -1,10 +1,10 @@
+import { ForbiddenException, NotFoundException } from 'lykosjs'
 import { PostSchema } from '../posts/schemas/post.schema'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import { CommentSchema } from './schemas/comment.schema'
-import { SpongForbiddenException, SpongNotFoundException } from 'riser-bob'
 import { buildPagination } from '../../utilities/pagination'
 import { UserSchema } from '../users/schemas/user.schema'
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { count, desc, eq, sql } from 'drizzle-orm'
 import { ReplySchema } from '../replies/schemas/reply.schema'
 import type { NotificationsService } from '../notifications/notifications.service'
@@ -12,12 +12,12 @@ import { NotificationType } from '../notifications/schemas/enums/notification-ty
 
 export class CommentsService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(userId: string, postId: string, content: string) {
-    const result = await this.db.transaction(async (transaction) => {
+    const result = await this.db.connection.transaction(async (transaction) => {
       // 1. Check if post exists
       const [post] = await transaction
         .select()
@@ -26,7 +26,7 @@ export class CommentsService {
         .limit(1)
 
       if (!post) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Post not found',
         })
@@ -71,7 +71,7 @@ export class CommentsService {
 
     // 5. Create a notification for the post owner
     if (result.authorId !== userId) {
-      const [user] = await this.db
+      const [user] = await this.db.connection
         .select({
           id: UserSchema.id,
           firstName: UserSchema.firstName,
@@ -107,17 +107,21 @@ export class CommentsService {
 
   async findAll(postId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
     // 1. Check if post exists
-    const [post] = await this.db.select().from(PostSchema).where(eq(PostSchema.id, postId)).limit(1)
+    const [post] = await this.db.connection
+      .select()
+      .from(PostSchema)
+      .where(eq(PostSchema.id, postId))
+      .limit(1)
 
     if (!post) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Post not found',
       })
     }
 
     // 2. Fetch comments
-    const comments = await this.db
+    const comments = await this.db.connection
       .select({
         comment: CommentSchema,
         user: {
@@ -134,7 +138,7 @@ export class CommentsService {
       .limit(limit)
       .offset(offset)
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({
         total: count(),
       })
@@ -149,7 +153,7 @@ export class CommentsService {
   }
 
   async findMe(userId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
-    const comments = await this.db
+    const comments = await this.db.connection
       .select({
         comment: CommentSchema,
         user: {
@@ -166,7 +170,7 @@ export class CommentsService {
       .limit(limit)
       .offset(offset)
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({
         total: count(),
       })
@@ -181,7 +185,7 @@ export class CommentsService {
   }
 
   async findOne(commentId: string) {
-    const [comment] = await this.db
+    const [comment] = await this.db.connection
       .select({
         comment: CommentSchema,
         user: {
@@ -197,7 +201,7 @@ export class CommentsService {
       .limit(1)
 
     if (!comment) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Comment not found',
       })
@@ -210,27 +214,27 @@ export class CommentsService {
   }
 
   async update(userId: string, commentId: string, content: string) {
-    const [comment] = await this.db
+    const [comment] = await this.db.connection
       .select()
       .from(CommentSchema)
       .where(eq(CommentSchema.id, commentId))
       .limit(1)
 
     if (!comment) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Comment not found',
       })
     }
 
     if (comment.userId !== userId) {
-      throw new SpongForbiddenException({
+      throw new ForbiddenException({
         success: false,
         message: 'You are not allowed to edit this comment',
       })
     }
 
-    const [updatedComment] = await this.db
+    const [updatedComment] = await this.db.connection
       .update(CommentSchema)
       .set({
         content,
@@ -248,7 +252,7 @@ export class CommentsService {
   }
 
   async delete(userId: string, commentId: string) {
-    return await this.db.transaction(async (transaction) => {
+    return await this.db.connection.transaction(async (transaction) => {
       // 1. Find comment
       const [comment] = await transaction
         .select()
@@ -257,7 +261,7 @@ export class CommentsService {
         .limit(1)
 
       if (!comment) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'Comment not found',
         })
@@ -265,7 +269,7 @@ export class CommentsService {
 
       // 2. Check ownership
       if (comment.userId !== userId) {
-        throw new SpongForbiddenException({
+        throw new ForbiddenException({
           success: false,
           message: 'You are not allowed to delete this comment',
         })
