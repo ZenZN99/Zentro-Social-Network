@@ -85,3 +85,5 @@ export const UserProfileSchema = pgTable('user_profiles', {
 
 export type UserProfile = typeof UserProfileSchema.$inferSelect
 export type NewUserProfile = typeof UserProfileSchema.$inferInsert
+
+
