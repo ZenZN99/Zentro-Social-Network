@@ -1,5 +1,5 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
+import { Validator } from 'lykosjs'
 
 export const conversationsAPI = {
   findMe: {
@@ -27,7 +27,7 @@ export const conversationsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        conversationId: rules(['required', 'string']),
+        conversationId: Validator.text().required(),
       },
     },
     response: {
@@ -53,7 +53,7 @@ export const conversationsAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        conversationId: rules(['required', 'string']),
+        conversationId: Validator.text().required(),
       },
     },
     response: {
