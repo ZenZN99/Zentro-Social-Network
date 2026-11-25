@@ -1,21 +1,21 @@
-import type { database } from '../../config/db/drizzle'
+import type { Database, database } from '../../config/db/drizzle'
 import { NotificationSchema, type Notification } from './schemas/notification.schema'
 import { and, desc, eq, getTableColumns } from 'drizzle-orm'
 import { UserSchema } from '../users/schemas/user.schema'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import type { NotificationsGateway } from '../../config/gateways/notifications.gateway'
-import { SpongInternalServerErrorException, SpongNotFoundException } from 'riser-bob'
+import { InternalServerErrorException, NotFoundException } from 'lykosjs'
 
 export class NotificationsService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async create(data: Partial<Notification>) {
     if (data.receiverId === data.senderId) return
 
-    const [created] = await this.db
+    const [created] = await this.db.connection
       .insert(NotificationSchema)
       .values({
         senderId: data.senderId!,
@@ -29,13 +29,13 @@ export class NotificationsService {
       .returning()
 
     if (!created) {
-      throw new SpongInternalServerErrorException({
+      throw new InternalServerErrorException({
         success: false,
         message: 'Failed to create notification',
       })
     }
 
-    const [notification] = await this.db
+    const [notification] = await this.db.connection
       .select({
         ...getTableColumns(NotificationSchema),
         sender: {
@@ -52,7 +52,7 @@ export class NotificationsService {
       .limit(1)
 
     if (!notification) {
-      throw new SpongInternalServerErrorException({
+      throw new InternalServerErrorException({
         success: false,
         message: 'Failed to retrieve notification',
       })
@@ -78,7 +78,7 @@ export class NotificationsService {
   }
 
   async findMe(receiverId: string) {
-    const result = await this.db
+    const result = await this.db.connection
       .select({
         ...getTableColumns(NotificationSchema),
 
@@ -113,7 +113,7 @@ export class NotificationsService {
   }
 
   async markAsRead(receiverId: string, notificationId: string) {
-    const [notification] = await this.db
+    const [notification] = await this.db.connection
       .select()
       .from(NotificationSchema)
       .where(
@@ -125,7 +125,7 @@ export class NotificationsService {
       .limit(1)
 
     if (!notification) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'Notification not found',
       })
@@ -134,7 +134,7 @@ export class NotificationsService {
     let updatedNotification = notification
 
     if (!notification.isRead) {
-      const [updated] = await this.db
+      const [updated] = await this.db.connection
         .update(NotificationSchema)
         .set({
           isRead: true,
@@ -158,7 +158,7 @@ export class NotificationsService {
   }
 
   async markAllAsRead(receiverId: string) {
-    await this.db
+    await this.db.connection
       .update(NotificationSchema)
       .set({
         isRead: true,
@@ -177,7 +177,7 @@ export class NotificationsService {
   }
 
   async delete(receiverId: string, notificationId: string) {
-    const [notification] = await this.db
+    const [notification] = await this.db.connection
       .select({ id: NotificationSchema.id })
       .from(NotificationSchema)
       .where(
@@ -189,13 +189,15 @@ export class NotificationsService {
       .limit(1)
 
     if (!notification) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         messag: 'Notification not found',
       })
     }
 
-    await this.db.delete(NotificationSchema).where(eq(NotificationSchema.id, notificationId))
+    await this.db.connection
+      .delete(NotificationSchema)
+      .where(eq(NotificationSchema.id, notificationId))
 
     return {
       success: true,
