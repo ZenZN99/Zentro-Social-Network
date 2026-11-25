@@ -1,5 +1,6 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
-import { rules } from 'riser-bob'
+import type { OpenAPIRoute } from "@lykosjs/openapi";
+import { Validator } from "lykosjs";
+
 
 export const messagesAPI = {
   create: {
@@ -13,10 +14,10 @@ export const messagesAPI = {
     request: {
       contentType: 'multipart/form-data',
       params: {
-        receiverId: rules(['required', 'string']),
+        receiverId: Validator.text().required(),
       },
       body: {
-        content: rules(['nullable', 'string']),
+        content: Validator.text().required(),
       },
     },
     response: {
@@ -46,7 +47,7 @@ export const messagesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        conversationId: rules(['required', 'string']),
+        conversationId: Validator.text().required(),
       },
     },
     response: {
@@ -69,7 +70,7 @@ export const messagesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        conversationId: rules(['required', 'string']),
+        conversationId: Validator.text().required(),
       },
     },
     response: {
@@ -92,7 +93,7 @@ export const messagesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        conversationId: rules(['required', 'string']),
+        conversationId: Validator.text().required(),
       },
     },
     response: {
@@ -115,7 +116,7 @@ export const messagesAPI = {
     security: ['CookieAuth'],
     request: {
       params: {
-        messageId: rules(['required', 'string']),
+        messageId: Validator.text().required(),
       },
     },
     response: {
