@@ -1,22 +1,18 @@
 import {
-  SpongBadRequestException,
-  SpongInternalServerErrorException,
-  SpongUnauthorizedException,
-  SpongUnprocessableEntityException,
-  Validator,
-  type SpongRequest,
-} from 'riser-bob'
+  BadRequestException,
+  InternalServerErrorException,
+  UnauthorizedException,
+  type Context,
+} from 'lykosjs'
 import { UserSchema, type User } from '../users/schemas/user.schema'
-import { CookieManager, type SameSite } from '@riser-bob/cookie'
-import { RegisterAuthRule } from './rules/register'
+import { CookieManager, type SameSite } from '@lykosjs/cookie'
 import bcrypt from 'bcryptjs'
 import { generateUsername } from '../../utilities/generate-user-name'
 import { UserRole } from '../users/schemas/enums/user-role'
 import jwt from '../../config/token/jwt'
 import { sanitizeUser } from '../../utilities/sanitize-user'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
-import { LoginAuthRule } from './rules/login'
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { eq } from 'drizzle-orm'
 
 export interface RegisterBody {
@@ -32,7 +28,7 @@ export interface LoginBody {
 }
 
 export class AuthService {
-  constructor(private readonly db: typeof database) {}
+  constructor(private readonly db: Database) {}
 
   private getCookieOptions(isLogout = false) {
     return {
@@ -53,27 +49,17 @@ export class AuthService {
     }
   }
 
-  async register(body: RegisterBody, spongReq: SpongRequest) {
-    const validation = Validator.validate({ ...body }, RegisterAuthRule)
+  async register(body: RegisterBody, ctx: Context) {
+    const { firstName, lastName, email, password } = body
 
-    if (!validation.valid) {
-      throw new SpongUnprocessableEntityException({
-        success: false,
-        message: 'validation failed',
-        errors: validation.errors,
-      })
-    }
-
-    const { firstName, lastName, email, password } = validation.data as RegisterBody
-
-    const [existing] = await this.db
+    const [existing] = await this.db.connection
       .select()
       .from(UserSchema)
       .where(eq(UserSchema.email, email))
       .limit(1)
 
     if (existing) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Unable to complete registration',
       })
@@ -81,12 +67,12 @@ export class AuthService {
 
     const hashed = await bcrypt.hash(password, 12)
 
-    const [newUser] = await this.db
+    const [newUser] = await this.db.connection
       .insert(UserSchema)
       .values({
         firstName,
         lastName,
-        username: await generateUsername(this.db, firstName, lastName),
+        username: await generateUsername(this.db.connection, firstName, lastName),
         email,
         password: hashed,
         role: UserRole.USER,
@@ -96,7 +82,7 @@ export class AuthService {
 
     const user = newUser!
 
-    await this.db.insert(UserProfileSchema).values({
+    await this.db.connection.insert(UserProfileSchema).values({
       userId: user.id,
       avatar: {
         url: 'https://res.cloudinary.com/dgagbheuj/image/upload/v1763194734/avatar-default-image_yc4xy4.jpg',
@@ -122,20 +108,20 @@ export class AuthService {
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 12)
 
-    const [updatedUser] = await this.db
+    const [updatedUser] = await this.db.connection
       .update(UserSchema)
       .set({ refreshToken: hashedRefreshToken })
       .where(eq(UserSchema.id, user.id))
       .returning()
 
     if (!updatedUser) {
-      throw new SpongInternalServerErrorException({
+      throw new InternalServerErrorException({
         success: false,
         message: 'Failed to update user',
       })
     }
 
-    const cookies = CookieManager.fromRequest(spongReq.request)
+    const cookies = CookieManager.fromRequest(ctx.request)
 
     cookies.set('accessToken', accessToken, this.getCookieOptions())
     cookies.set('refreshToken', refreshToken, this.getRefreshCookieOptions())
@@ -159,27 +145,17 @@ export class AuthService {
     return cookies.applyTo(response)
   }
 
-  async login(body: LoginBody, spongReq: SpongRequest) {
-    const validation = Validator.validate({ ...body }, LoginAuthRule)
+  async login(body: LoginBody, ctx: Context) {
+    const { email, password } = body
 
-    if (!validation.valid) {
-      throw new SpongUnprocessableEntityException({
-        success: false,
-        message: 'validation failed',
-        errors: validation.errors,
-      })
-    }
-
-    const { email, password } = validation.data as LoginBody
-
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select()
       .from(UserSchema)
       .where(eq(UserSchema.email, email))
       .limit(1)
 
     if (!user) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Invalid email or password',
       })
@@ -188,7 +164,7 @@ export class AuthService {
     const isMatch = await bcrypt.compare(password, user.password)
 
     if (!isMatch) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'Invalid email or password',
       })
@@ -205,13 +181,13 @@ export class AuthService {
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 12)
 
-    const [updatedUser] = await this.db
+    const [updatedUser] = await this.db.connection
       .update(UserSchema)
       .set({ refreshToken: hashedRefreshToken })
       .where(eq(UserSchema.id, user.id))
       .returning()
 
-    const cookies = CookieManager.fromRequest(spongReq.request)
+    const cookies = CookieManager.fromRequest(ctx.request)
 
     cookies.set('accessToken', accessToken, this.getCookieOptions())
     cookies.set('refreshToken', refreshToken, this.getRefreshCookieOptions())
@@ -235,8 +211,8 @@ export class AuthService {
     return cookies.applyTo(response)
   }
 
-  async logout(spongReq: SpongRequest) {
-    const cookies = CookieManager.fromRequest(spongReq.request)
+  async logout(ctx: Context) {
+    const cookies = CookieManager.fromRequest(ctx.request)
 
     cookies.delete('accessToken', this.getCookieOptions(true))
     cookies.delete('refreshToken', this.getRefreshCookieOptions())
@@ -258,20 +234,20 @@ export class AuthService {
   }
 
   async me(currentUser: Partial<User>) {
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select()
       .from(UserSchema)
       .where(eq(UserSchema.id, currentUser.id!))
       .limit(1)
 
     if (!user) {
-      throw new SpongUnauthorizedException({
+      throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
     }
 
-    const [profile] = await this.db
+    const [profile] = await this.db.connection
       .select({
         id: UserProfileSchema.id,
         avatar: UserProfileSchema.avatar,
@@ -291,13 +267,13 @@ export class AuthService {
     }
   }
 
-  async refreshToken(spongReq: SpongRequest) {
-    const cookies = CookieManager.fromRequest(spongReq.request)
+  async refreshToken(ctx: Context) {
+    const cookies = CookieManager.fromRequest(ctx.request)
 
     const refreshToken = cookies.get('refreshToken')
 
     if (!refreshToken) {
-      throw new SpongUnauthorizedException({
+      throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
@@ -306,20 +282,20 @@ export class AuthService {
     const payload = jwt.verifyRefreshToken(refreshToken)
 
     if (!payload || typeof payload.id !== 'string') {
-      throw new SpongUnauthorizedException({
+      throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
     }
 
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select()
       .from(UserSchema)
       .where(eq(UserSchema.id, payload.id))
       .limit(1)
 
     if (!user || !user.refreshToken) {
-      throw new SpongUnauthorizedException({
+      throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
@@ -328,7 +304,7 @@ export class AuthService {
     const valid = await bcrypt.compare(refreshToken, user.refreshToken)
 
     if (!valid) {
-      throw new SpongUnauthorizedException({
+      throw new UnauthorizedException({
         success: false,
         message: 'You are not authenticated',
       })
