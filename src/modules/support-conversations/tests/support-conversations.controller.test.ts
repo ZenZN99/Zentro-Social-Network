@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test'
-import { SpongNotFoundException, SpongUnauthorizedException } from 'riser-bob'
-import type { SpongHandler } from 'riser-bob'
+import { NotFoundException, UnauthorizedException } from 'lykosjs'
+import type { ContextHandler } from 'lykosjs'
 import type { SupportConversationsService } from '../support-conversations.service'
 
 /* -------------------------------------------------------------------------- */
@@ -29,8 +29,8 @@ const { SupportConversationsController } = await import('../support-conversation
 /*  Typed test doubles (no `any`)                                             */
 /* -------------------------------------------------------------------------- */
 
-type SpongReq = Parameters<SpongHandler>[0]
-type SpongRes = Parameters<SpongHandler>[1]
+type Req = Parameters<ContextHandler>[0]
+type Res = Parameters<ContextHandler>[1]
 
 interface ReqOptions {
   params?: Record<string, string | undefined>
@@ -42,19 +42,19 @@ interface ReqOptions {
 function createReq(options: ReqOptions = {}) {
   const user = options.user === null ? undefined : (options.user ?? { id: 'user-1' })
   const req = { params: options.params ?? {}, user, body: options.body }
-  return { req: req as unknown as SpongReq }
+  return { req: req as unknown as Req }
 }
 
 function createRes() {
-  const SpongOK = mock((_body: unknown): void => {})
-  const SpongCreated = mock((_body: unknown): void => {})
-  const SpongBadRequest = mock((_body: unknown): void => {})
+  const OK = mock((_body: unknown): void => {})
+  const Created = mock((_body: unknown): void => {})
+  const BadRequest = mock((_body: unknown): void => {})
 
   return {
-    res: { SpongOK, SpongCreated, SpongBadRequest } as unknown as SpongRes,
-    SpongOK,
-    SpongCreated,
-    SpongBadRequest,
+    res: { OK, Created, BadRequest } as unknown as Res,
+    OK,
+    Created,
+    BadRequest,
   }
 }
 
@@ -144,19 +144,19 @@ beforeEach(() => {
 describe('SupportConversationsController.create', () => {
   test('passes the authenticated user id to the service and responds 201 with { success, message, data }', async () => {
     const { req } = createReq({ user: { id: 'user-42' } })
-    const { res, SpongCreated, SpongOK } = createRes()
+    const { res, Created, OK } = createRes()
 
     await controller.create(req, res)
 
     expect(service.create).toHaveBeenCalledTimes(1)
     expect(service.create).toHaveBeenCalledWith('user-42')
-    expect(SpongCreated).toHaveBeenCalledTimes(1)
-    expect(SpongCreated.mock.calls[0]?.[0]).toEqual({
+    expect(Created).toHaveBeenCalledTimes(1)
+    expect(Created.mock.calls[0]?.[0]).toEqual({
       success: true,
       message: 'Support conversation created successfully',
       data: createResult.data,
     })
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('takes the user id from the authenticated user only, never from params or body', async () => {
@@ -175,21 +175,21 @@ describe('SupportConversationsController.create', () => {
   test('lets service errors propagate without a success response', async () => {
     service.create.mockRejectedValueOnce(new Error('db down'))
     const { req } = createReq()
-    const { res, SpongCreated } = createRes()
+    const { res, Created } = createRes()
 
     await expect(controller.create(req, res)).rejects.toThrow('db down')
 
-    expect(SpongCreated).not.toHaveBeenCalled()
+    expect(Created).not.toHaveBeenCalled()
   })
 
   test('never calls the service when there is no authenticated user', async () => {
     const { req } = createReq({ user: null })
-    const { res, SpongCreated } = createRes()
+    const { res, Created } = createRes()
 
     await expect(controller.create(req, res)).rejects.toBeDefined()
 
     expect(service.create).not.toHaveBeenCalled()
-    expect(SpongCreated).not.toHaveBeenCalled()
+    expect(Created).not.toHaveBeenCalled()
   })
 })
 
@@ -207,12 +207,12 @@ describe('SupportConversationsController.findAll', () => {
 
   test('responds 200 with exactly { success, data: { conversations, pagination } }', async () => {
     const { req } = createReq()
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await controller.findAll(req, res)
 
-    expect(SpongOK).toHaveBeenCalledTimes(1)
-    expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+    expect(OK).toHaveBeenCalledTimes(1)
+    expect(OK.mock.calls[0]?.[0]).toEqual({
       success: true,
       data: {
         conversations: findAllResult.data,
@@ -224,24 +224,24 @@ describe('SupportConversationsController.findAll', () => {
   test('propagates service errors without sending a success response', async () => {
     service.findAll.mockRejectedValueOnce(new Error('db down'))
     const { req } = createReq()
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.findAll(req, res)).rejects.toThrow('db down')
 
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 })
 
 describe('SupportConversationsController.findMe', () => {
   test('passes the authenticated user id to the service and responds 200 with { success, data }', async () => {
     const { req } = createReq({ user: { id: 'user-42' } })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await controller.findMe(req, res)
 
     expect(service.findMe).toHaveBeenCalledWith('user-42')
-    expect(SpongOK).toHaveBeenCalledTimes(1)
-    expect(SpongOK.mock.calls[0]?.[0]).toEqual({ success: true, data: findMeResult.data })
+    expect(OK).toHaveBeenCalledTimes(1)
+    expect(OK.mock.calls[0]?.[0]).toEqual({ success: true, data: findMeResult.data })
   })
 
   test('takes the user id from the authenticated user only, never from params', async () => {
@@ -256,21 +256,21 @@ describe('SupportConversationsController.findMe', () => {
   test('propagates service errors without sending a success response', async () => {
     service.findMe.mockRejectedValueOnce(new Error('db down'))
     const { req } = createReq()
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.findMe(req, res)).rejects.toThrow('db down')
 
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('never calls the service when there is no authenticated user', async () => {
     const { req } = createReq({ user: null })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.findMe(req, res)).rejects.toBeDefined()
 
     expect(service.findMe).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 })
 
@@ -280,13 +280,13 @@ describe('SupportConversationsController.findOne', () => {
       user: { id: 'user-42' },
       params: { conversationId: 'conv-1' },
     })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await controller.findOne(req, res)
 
     expect(service.findOne).toHaveBeenCalledWith('user-42', 'conv-1')
-    expect(SpongOK).toHaveBeenCalledTimes(1)
-    expect(SpongOK.mock.calls[0]?.[0]).toEqual({ success: true, data: findOneResult.data })
+    expect(OK).toHaveBeenCalledTimes(1)
+    expect(OK.mock.calls[0]?.[0]).toEqual({ success: true, data: findOneResult.data })
   })
 
   test('takes the user id from the authenticated user only', async () => {
@@ -304,53 +304,53 @@ describe('SupportConversationsController.findOne', () => {
   for (const conversationId of MISSING_ID_CASES) {
     test(`responds 400 and skips the service when conversationId is ${JSON.stringify(conversationId) ?? 'undefined'}`, async () => {
       const { req } = createReq({ params: { conversationId } })
-      const { res, SpongBadRequest, SpongOK } = createRes()
+      const { res, BadRequest, OK } = createRes()
 
       await controller.findOne(req, res)
 
-      expect(SpongBadRequest).toHaveBeenCalledTimes(1)
-      expect(SpongBadRequest.mock.calls[0]?.[0]).toEqual({
+      expect(BadRequest).toHaveBeenCalledTimes(1)
+      expect(BadRequest.mock.calls[0]?.[0]).toEqual({
         success: false,
         message: 'Support Conversation ID is required',
       })
       expect(service.findOne).not.toHaveBeenCalled()
-      expect(SpongOK).not.toHaveBeenCalled()
+      expect(OK).not.toHaveBeenCalled()
     })
   }
 
   test('lets not-found errors from the service propagate', async () => {
     service.findOne.mockRejectedValueOnce(
-      new SpongNotFoundException({ success: false, message: 'Support conversation not found' }),
+      new NotFoundException({ success: false, message: 'Support conversation not found' }),
     )
     const { req } = createReq({ params: { conversationId: 'ghost' } })
-    const { res, SpongOK, SpongBadRequest } = createRes()
+    const { res, OK, BadRequest } = createRes()
 
-    await expect(controller.findOne(req, res)).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(controller.findOne(req, res)).rejects.toBeInstanceOf(NotFoundException)
 
-    expect(SpongOK).not.toHaveBeenCalled()
-    expect(SpongBadRequest).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
+    expect(BadRequest).not.toHaveBeenCalled()
   })
 
   test('lets authentication errors from the service propagate', async () => {
     service.findOne.mockRejectedValueOnce(
-      new SpongUnauthorizedException({ success: false, message: 'You are not authenticated' }),
+      new UnauthorizedException({ success: false, message: 'You are not authenticated' }),
     )
     const { req } = createReq({ params: { conversationId: 'conv-1' } })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
-    await expect(controller.findOne(req, res)).rejects.toBeInstanceOf(SpongUnauthorizedException)
+    await expect(controller.findOne(req, res)).rejects.toBeInstanceOf(UnauthorizedException)
 
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('never calls the service when there is no authenticated user', async () => {
     const { req } = createReq({ user: null, params: { conversationId: 'conv-1' } })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.findOne(req, res)).rejects.toBeDefined()
 
     expect(service.findOne).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 })
 
@@ -360,13 +360,13 @@ describe('SupportConversationsController.toggle', () => {
       user: { id: 'admin-1' },
       params: { conversationId: 'conv-1' },
     })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await controller.toggle(req, res)
 
     expect(service.toggle).toHaveBeenCalledWith('admin-1', 'conv-1')
-    expect(SpongOK).toHaveBeenCalledTimes(1)
-    expect(SpongOK.mock.calls[0]?.[0]).toEqual({
+    expect(OK).toHaveBeenCalledTimes(1)
+    expect(OK.mock.calls[0]?.[0]).toEqual({
       success: true,
       message: 'Support conversation closed successfully',
       data: toggleResult.data,
@@ -389,41 +389,41 @@ describe('SupportConversationsController.toggle', () => {
   for (const conversationId of MISSING_ID_CASES) {
     test(`responds 400 and skips the service when conversationId is ${JSON.stringify(conversationId) ?? 'undefined'}`, async () => {
       const { req } = createReq({ params: { conversationId } })
-      const { res, SpongBadRequest, SpongOK } = createRes()
+      const { res, BadRequest, OK } = createRes()
 
       await controller.toggle(req, res)
 
-      expect(SpongBadRequest).toHaveBeenCalledTimes(1)
-      expect(SpongBadRequest.mock.calls[0]?.[0]).toEqual({
+      expect(BadRequest).toHaveBeenCalledTimes(1)
+      expect(BadRequest.mock.calls[0]?.[0]).toEqual({
         success: false,
         message: 'Support Conversation ID is required',
       })
       expect(service.toggle).not.toHaveBeenCalled()
-      expect(SpongOK).not.toHaveBeenCalled()
+      expect(OK).not.toHaveBeenCalled()
     })
   }
 
   test('lets not-found errors from the service propagate', async () => {
     service.toggle.mockRejectedValueOnce(
-      new SpongNotFoundException({ success: false, message: 'Support conversation not found' }),
+      new NotFoundException({ success: false, message: 'Support conversation not found' }),
     )
     const { req } = createReq({ params: { conversationId: 'ghost' } })
-    const { res, SpongOK, SpongBadRequest } = createRes()
+    const { res, OK, BadRequest } = createRes()
 
-    await expect(controller.toggle(req, res)).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(controller.toggle(req, res)).rejects.toBeInstanceOf(NotFoundException)
 
-    expect(SpongOK).not.toHaveBeenCalled()
-    expect(SpongBadRequest).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
+    expect(BadRequest).not.toHaveBeenCalled()
   })
 
   test('never calls the service when there is no authenticated user', async () => {
     const { req } = createReq({ user: null, params: { conversationId: 'conv-1' } })
-    const { res, SpongOK } = createRes()
+    const { res, OK } = createRes()
 
     await expect(controller.toggle(req, res)).rejects.toBeDefined()
 
     expect(service.toggle).not.toHaveBeenCalled()
-    expect(SpongOK).not.toHaveBeenCalled()
+    expect(OK).not.toHaveBeenCalled()
   })
 
   test('responds with an authentication error (not a TypeError) when there is no authenticated user', async () => {
@@ -432,6 +432,6 @@ describe('SupportConversationsController.toggle', () => {
 
     const error = await captureRejection((async () => controller.toggle(req, res))())
 
-    expect(error).toBeInstanceOf(SpongUnauthorizedException)
+    expect(error).toBeInstanceOf(UnauthorizedException)
   })
 })
