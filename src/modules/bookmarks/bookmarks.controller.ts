@@ -1,16 +1,17 @@
-import type { SpongHandler } from 'riser-bob'
 import type { BookmarksService } from './bookmarks.service'
 import { getPagination } from '../../utilities/pagination'
+import type { ContextHandler } from 'lykosjs'
+import { verifyUser } from '../../config/token/verify-user'
 
 export class BookmarksController {
   constructor(private readonly bookmarksService: BookmarksService) {}
 
-  readonly toggle: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
-    const { postId } = spongReq.params
+  readonly toggle: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
+    const { postId } = ctx.params
 
     if (!postId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Post ID is required',
       })
@@ -18,7 +19,7 @@ export class BookmarksController {
 
     const result = await this.bookmarksService.toggle(userId, postId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       message: result.message,
       data: {
@@ -27,13 +28,13 @@ export class BookmarksController {
     })
   }
 
-  readonly findMe: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
-    const { page, limit, offset } = getPagination(spongReq)
+  readonly findMe: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
+    const { page, limit, offset } = getPagination(ctx)
 
     const result = await this.bookmarksService.findMe(userId, page, limit, offset)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: {
         bookmarks: result.bookmarks,
@@ -42,12 +43,12 @@ export class BookmarksController {
     })
   }
 
-  readonly isBookmarked: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
-    const { postId } = spongReq.params
+  readonly isBookmarked: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
+    const { postId } = ctx.params
 
     if (!postId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Post ID is required',
       })
@@ -55,7 +56,7 @@ export class BookmarksController {
 
     const result = await this.bookmarksService.isBookmarked(userId, postId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: {
         isBookmarked: result.isBookmarked,
@@ -63,11 +64,11 @@ export class BookmarksController {
     })
   }
 
-  readonly countByPostId: SpongHandler = async (spongReq, spongRes) => {
-    const { postId } = spongReq.params
+  readonly countByPostId: ContextHandler = async (ctx, reply) => {
+    const { postId } = ctx.params
 
     if (!postId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Post ID is required',
       })
@@ -75,7 +76,7 @@ export class BookmarksController {
 
     const result = await this.bookmarksService.countByPostId(postId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: {
         bookmarksCount: result.bookmarksCount,
@@ -83,16 +84,20 @@ export class BookmarksController {
     })
   }
 
-  readonly countMe: SpongHandler = async (spongReq, spongRes) => {
-    const userId = spongReq.user!.id
+  readonly countMe: ContextHandler = async (ctx, reply) => {
+    const userId = ctx.user!.id
 
     const result = await this.bookmarksService.countMe(userId)
 
-    return spongRes.SpongOK({
+    return reply.OK({
       success: result.success,
       data: {
         bookmarksCount: result.bookmarksCount,
       },
     })
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
