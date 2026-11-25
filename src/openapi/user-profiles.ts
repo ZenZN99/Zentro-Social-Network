@@ -1,4 +1,4 @@
-import type { OpenAPIRoute } from '@riser-bob/openapi'
+import type { OpenAPIRoute } from '@lykosjs/openapi'
 import { UpdateUserProfileRule } from '../modules/user-profiles/rules/update'
 
 export const userProfilesAPI = {
