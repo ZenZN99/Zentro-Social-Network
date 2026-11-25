@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import {
-  SpongForbiddenException,
-  SpongInternalServerErrorException,
-  SpongNotFoundException,
-} from 'riser-bob'
-import type { database } from '../../../config/db/drizzle'
+import { ForbiddenException, InternalServerErrorException, NotFoundException } from 'lykosjs'
+import type { Database, database } from '../../../config/db/drizzle'
 import { buildPagination } from '../../../utilities/pagination'
 import type { NotificationsService } from '../../notifications/notifications.service'
 import { NotificationType } from '../../notifications/schemas/enums/notification-type'
@@ -191,7 +187,7 @@ beforeEach(() => {
   db = createFakeDb()
   notifications = createFakeNotifications()
   service = new RepliesService(
-    db as unknown as typeof database,
+    { connection: db } as unknown as Database,
     notifications as unknown as NotificationsService,
   )
 })
@@ -311,11 +307,11 @@ describe('RepliesService.create', () => {
     expect(whereSql(parentChain)).not.toContain(payload)
   })
 
-  test('throws SpongNotFoundException when the parent reply is missing or belongs to another comment', async () => {
+  test('throws NotFoundException when the parent reply is missing or belongs to another comment', async () => {
     const { insertChain } = queueCreate({ parent: null })
 
     await expect(service.create(USER_ID, COMMENT_ID, 'a reply', PARENT_ID)).rejects.toBeInstanceOf(
-      SpongNotFoundException,
+      NotFoundException,
     )
 
     expect(insertChain.values).not.toHaveBeenCalled()
@@ -323,11 +319,11 @@ describe('RepliesService.create', () => {
     expect(notifications.create).not.toHaveBeenCalled()
   })
 
-  test('throws SpongNotFoundException when the comment does not exist', async () => {
+  test('throws NotFoundException when the comment does not exist', async () => {
     queueCreate({ comment: null })
 
     await expect(service.create(USER_ID, 'ghost', 'a reply')).rejects.toBeInstanceOf(
-      SpongNotFoundException,
+      NotFoundException,
     )
 
     expect(db.select).toHaveBeenCalledTimes(1)
@@ -336,22 +332,22 @@ describe('RepliesService.create', () => {
     expect(notifications.create).not.toHaveBeenCalled()
   })
 
-  test('throws SpongNotFoundException when the author does not exist', async () => {
+  test('throws NotFoundException when the author does not exist', async () => {
     queueCreate({ user: null })
 
     await expect(service.create('ghost', COMMENT_ID, 'a reply')).rejects.toBeInstanceOf(
-      SpongNotFoundException,
+      NotFoundException,
     )
 
     expect(db.insert).not.toHaveBeenCalled()
     expect(db.update).not.toHaveBeenCalled()
   })
 
-  test('throws SpongInternalServerErrorException when the insert returns no row, without touching counters', async () => {
+  test('throws InternalServerErrorException when the insert returns no row, without touching counters', async () => {
     queueCreate({ inserted: [] })
 
     await expect(service.create(USER_ID, COMMENT_ID, 'a reply')).rejects.toBeInstanceOf(
-      SpongInternalServerErrorException,
+      InternalServerErrorException,
     )
 
     expect(db.update).not.toHaveBeenCalled()
@@ -488,10 +484,10 @@ describe('RepliesService.findAll', () => {
     })
   })
 
-  test('throws SpongNotFoundException when the comment does not exist', async () => {
+  test('throws NotFoundException when the comment does not exist', async () => {
     queueFindAll([], 0, null)
 
-    await expect(service.findAll('ghost', 1, 10)).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.findAll('ghost', 1, 10)).rejects.toBeInstanceOf(NotFoundException)
 
     expect(db.select).toHaveBeenCalledTimes(1)
   })
@@ -654,10 +650,10 @@ describe('RepliesService.findOne', () => {
     expect(whereParams(chain)).toContain(REPLY_ID)
   })
 
-  test('throws SpongNotFoundException when the reply does not exist', async () => {
+  test('throws NotFoundException when the reply does not exist', async () => {
     db.select.mockReturnValueOnce(rows([]))
 
-    await expect(service.findOne('ghost')).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.findOne('ghost')).rejects.toBeInstanceOf(NotFoundException)
   })
 
   test('treats injection-looking ids as plain data', async () => {
@@ -665,7 +661,7 @@ describe('RepliesService.findOne', () => {
     const chain = rows([])
     db.select.mockReturnValueOnce(chain)
 
-    await expect(service.findOne(payload)).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.findOne(payload)).rejects.toBeInstanceOf(NotFoundException)
 
     expect(whereParams(chain)).toContain(payload)
     expect(whereSql(chain)).not.toContain(payload)
@@ -716,21 +712,21 @@ describe('RepliesService.update', () => {
     ])
   })
 
-  test('throws SpongNotFoundException when the reply does not exist', async () => {
+  test('throws NotFoundException when the reply does not exist', async () => {
     queueUpdate(null)
 
     await expect(service.update(USER_ID, 'ghost', 'edited')).rejects.toBeInstanceOf(
-      SpongNotFoundException,
+      NotFoundException,
     )
 
     expect(db.update).not.toHaveBeenCalled()
   })
 
-  test("throws SpongForbiddenException when editing someone else's reply", async () => {
+  test("throws ForbiddenException when editing someone else's reply", async () => {
     queueUpdate(makeReply({ userId: OTHER_ID }))
 
     await expect(service.update(USER_ID, REPLY_ID, 'edited')).rejects.toBeInstanceOf(
-      SpongForbiddenException,
+      ForbiddenException,
     )
 
     expect(db.update).not.toHaveBeenCalled()
@@ -802,30 +798,30 @@ describe('RepliesService.delete', () => {
     expect(whereParams(profileUpdate)).toContain(USER_ID)
   })
 
-  test('throws SpongNotFoundException when the reply does not exist', async () => {
+  test('throws NotFoundException when the reply does not exist', async () => {
     queueDelete({ reply: null })
 
-    await expect(service.delete(USER_ID, 'ghost')).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.delete(USER_ID, 'ghost')).rejects.toBeInstanceOf(NotFoundException)
 
     expect(db.select).toHaveBeenCalledTimes(1)
     expect(db.delete).not.toHaveBeenCalled()
     expect(db.update).not.toHaveBeenCalled()
   })
 
-  test("throws SpongForbiddenException when deleting someone else's reply, changing nothing", async () => {
+  test("throws ForbiddenException when deleting someone else's reply, changing nothing", async () => {
     queueDelete({ reply: makeReply({ userId: OTHER_ID }) })
 
-    await expect(service.delete(USER_ID, REPLY_ID)).rejects.toBeInstanceOf(SpongForbiddenException)
+    await expect(service.delete(USER_ID, REPLY_ID)).rejects.toBeInstanceOf(ForbiddenException)
 
     expect(db.select).toHaveBeenCalledTimes(1)
     expect(db.delete).not.toHaveBeenCalled()
     expect(db.update).not.toHaveBeenCalled()
   })
 
-  test('throws SpongNotFoundException when the parent comment is gone, changing nothing', async () => {
+  test('throws NotFoundException when the parent comment is gone, changing nothing', async () => {
     queueDelete({ comment: null })
 
-    await expect(service.delete(USER_ID, REPLY_ID)).rejects.toBeInstanceOf(SpongNotFoundException)
+    await expect(service.delete(USER_ID, REPLY_ID)).rejects.toBeInstanceOf(NotFoundException)
 
     expect(db.delete).not.toHaveBeenCalled()
     expect(db.update).not.toHaveBeenCalled()
