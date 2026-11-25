@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import type { BookmarksService } from '../bookmarks.service'
-import type { SpongHandler } from 'riser-bob'
+import type { ContextHandler } from 'lykosjs'
 
 const getPaginationMock = mock((_req: unknown) => ({
   page: 1,
@@ -92,13 +92,13 @@ const createRequest = (
 })
 
 const createResponse = () => ({
-  SpongBadRequest: mock((body: unknown) => Response.json(body, { status: 400 })),
+  BadRequest: mock((body: unknown) => Response.json(body, { status: 400 })),
 
-  SpongOK: mock((body: unknown) => Response.json(body, { status: 200 })),
+  OK: mock((body: unknown) => Response.json(body, { status: 200 })),
 })
 
 const invoke = (
-  handler: SpongHandler,
+  handler: ContextHandler,
   request: ReturnType<typeof createRequest>,
   response: ReturnType<typeof createResponse>,
 ) => handler(request as never, response as never)
@@ -125,7 +125,7 @@ describe('BookmarksController', () => {
 
       expect(service.toggle).toHaveBeenCalledWith('user-id', 'post-id')
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         message: 'Post bookmarked successfully',
         data: {
@@ -160,7 +160,7 @@ describe('BookmarksController', () => {
 
       await invoke(controller.toggle, request, response)
 
-      expect(response.SpongBadRequest).toHaveBeenCalledWith({
+      expect(response.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Post ID is required',
       })
@@ -182,7 +182,7 @@ describe('BookmarksController', () => {
 
       await invoke(controller.toggle, createRequest(), response)
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         message: 'Bookmark removed successfully',
         data: {
@@ -238,7 +238,7 @@ describe('BookmarksController', () => {
       expect(getPaginationMock).toHaveBeenCalledWith(request)
       expect(service.findMe).toHaveBeenCalledWith('user-id', 1, 10, 0)
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           bookmarks: [
@@ -284,7 +284,7 @@ describe('BookmarksController', () => {
 
       await invoke(controller.findMe, createRequest(), response)
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           bookmarks: [],
@@ -316,7 +316,7 @@ describe('BookmarksController', () => {
 
       expect(service.isBookmarked).toHaveBeenCalledWith('user-id', 'post-id')
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           isBookmarked: true,
@@ -337,7 +337,7 @@ describe('BookmarksController', () => {
 
       await invoke(controller.isBookmarked, createRequest(), response)
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           isBookmarked: false,
@@ -352,7 +352,7 @@ describe('BookmarksController', () => {
 
       await invoke(controller.isBookmarked, createRequest({ params: {} }), response)
 
-      expect(response.SpongBadRequest).toHaveBeenCalledWith({
+      expect(response.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Post ID is required',
       })
@@ -383,7 +383,7 @@ describe('BookmarksController', () => {
 
       expect(service.countByPostId).toHaveBeenCalledWith('post-id')
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           bookmarksCount: 5,
@@ -398,7 +398,7 @@ describe('BookmarksController', () => {
 
       await invoke(controller.countByPostId, createRequest({ params: {} }), response)
 
-      expect(response.SpongBadRequest).toHaveBeenCalledWith({
+      expect(response.BadRequest).toHaveBeenCalledWith({
         success: false,
         message: 'Post ID is required',
       })
@@ -429,7 +429,7 @@ describe('BookmarksController', () => {
 
       expect(service.countMe).toHaveBeenCalledWith('user-id')
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           bookmarksCount: 3,
@@ -450,7 +450,7 @@ describe('BookmarksController', () => {
 
       await invoke(controller.countMe, createRequest(), response)
 
-      expect(response.SpongOK).toHaveBeenCalledWith({
+      expect(response.OK).toHaveBeenCalledWith({
         success: true,
         data: {
           bookmarksCount: 0,
