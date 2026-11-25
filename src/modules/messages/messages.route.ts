@@ -1,11 +1,10 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import type { AuthMiddleware, Lykos } from 'lykosjs'
 import { MessagesController } from './messages.controller'
 import type { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
 
 export class MessagesRouter {
   constructor(
-    private readonly bob: RiserBob,
+    private readonly app: Lykos,
     private readonly controller: MessagesController,
     private readonly authMiddleware: AuthMiddleware,
     private readonly userActiveMiddleware: UserActiveMiddleware,
@@ -14,14 +13,14 @@ export class MessagesRouter {
   register(): void {
     // Protected routes
 
-    this.bob.spongGroup(
+    this.app.group(
       '/api/messages',
-      (group) => {
-        group.spongPost('/:receiverId', this.controller.create)
-        group.spongGet('/:conversationId', this.controller.findAll)
-        group.spongPut('/:conversationId', this.controller.markAllAsRead)
-        group.spongGet('/:conversationId/unread-count', this.controller.findUnreadCount)
-        group.spongDelete('/:messageId', this.controller.delete)
+      (auth) => {
+        auth.POST('/:receiverId', this.controller.create)
+        auth.GET('/:conversationId', this.controller.findAll)
+        auth.PUT('/:conversationId', this.controller.markAllAsRead)
+        auth.GET('/:conversationId/unread-count', this.controller.findUnreadCount)
+        auth.DELETE('/:messageId', this.controller.delete)
       },
       this.authMiddleware.middleware,
       this.userActiveMiddleware.middleware,
