@@ -1,12 +1,13 @@
-import type { SpongHandler } from 'riser-bob'
+import type { ContextHandler } from 'lykosjs'
 import type { NotificationsService } from './notifications.service'
 import type { NotificationType } from './schemas/enums/notification-type'
+import { verifyUser } from '../../config/token/verify-user'
 
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  readonly create: SpongHandler = async (spongReq, spongRes) => {
-    const data = await spongReq.json<{
+  readonly create: ContextHandler = async (ctx, reply) => {
+    const data = await ctx.json<{
       senderId: string
       receiverId: string
       targetId?: string | null
@@ -17,70 +18,74 @@ export class NotificationsController {
 
     const result = await this.notificationsService.create(data)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result?.success,
       data: result?.data,
     })
   }
 
-  readonly findMe: SpongHandler = async (spongReq, spongRes) => {
-    const receiverId = spongReq.user!.id
+  readonly findMe: ContextHandler = async (ctx, reply) => {
+    const receiverId = ctx.user!.id
 
     const result = await this.notificationsService.findMe(receiverId)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result.success,
       data: result.data,
     })
   }
 
-  readonly markAsRead: SpongHandler = async (spongReq, spongRes) => {
-    const receiverId = spongReq.user!.id
+  readonly markAsRead: ContextHandler = async (ctx, reply) => {
+    const receiverId = ctx.user!.id
 
-    const { notificationId } = spongReq.params
+    const { notificationId } = ctx.params
 
     if (!notificationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Notification ID is required',
       })
     }
     const result = await this.notificationsService.markAsRead(receiverId, notificationId)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result.success,
       message: result.message,
       data: result.data,
     })
   }
 
-  readonly markAllAsRead: SpongHandler = async (spongReq, spongRes) => {
-    const receiverId = spongReq.user!.id
+  readonly markAllAsRead: ContextHandler = async (ctx, reply) => {
+    const receiverId = ctx.user!.id
 
     const result = await this.notificationsService.markAllAsRead(receiverId)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result.success,
       message: result.message,
     })
   }
 
-  readonly delete: SpongHandler = async (spongReq, spongRes) => {
-    const receiverId = spongReq.user!.id
+  readonly delete: ContextHandler = async (ctx, reply) => {
+    const receiverId = ctx.user!.id
 
-    const { notificationId } = spongReq.params
+    const { notificationId } = ctx.params
 
     if (!notificationId) {
-      return spongRes.SpongBadRequest({
+      return reply.BadRequest({
         success: false,
         message: 'Notification ID is required',
       })
     }
     const result = await this.notificationsService.delete(receiverId, notificationId)
 
-    return spongRes.SpongCreated({
+    return reply.Created({
       success: result.success,
       message: result.message,
     })
+  }
+
+  verifyToken(token: string) {
+    return verifyUser(token)
   }
 }
