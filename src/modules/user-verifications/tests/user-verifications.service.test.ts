@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test'
-import { SpongBadRequestException, SpongNotFoundException } from 'riser-bob'
-import type { database } from '../../../config/db/drizzle'
+import { BadRequestException, NotFoundException } from 'lykosjs'
+import type { Database, database } from '../../../config/db/drizzle'
 import type { NotificationsService } from '../../notifications/notifications.service'
 import { NotificationType } from '../../notifications/schemas/enums/notification-type'
 import { UserVerificationStatus } from '../schemas/enums/user-verification-status'
@@ -173,7 +173,7 @@ beforeEach(() => {
   db = createFakeDb()
   notifications = createFakeNotifications()
   service = new UserVerificationsService(
-    db as unknown as typeof database,
+    { connection: db } as unknown as Database,
     notifications as unknown as NotificationsService,
   )
 })
@@ -322,7 +322,7 @@ describe('UserVerificationsService.create — existing request', () => {
       db.select.mockReturnValueOnce(rows([makeVerification({ status })]))
 
       await expect(service.create(USER_ID, makeFormData())).rejects.toBeInstanceOf(
-        SpongBadRequestException,
+        BadRequestException,
       )
 
       expectNothingPersisted()
@@ -662,7 +662,7 @@ describe('UserVerificationsService.update', () => {
     })
   })
 
-  test('throws SpongNotFoundException when the request does not exist', async () => {
+  test('throws NotFoundException when the request does not exist', async () => {
     db.select.mockReturnValueOnce(rows([]))
 
     await expect(
@@ -670,7 +670,7 @@ describe('UserVerificationsService.update', () => {
         status: UserVerificationStatus.APPROVED,
         rejectionReason: null,
       }),
-    ).rejects.toBeInstanceOf(SpongNotFoundException)
+    ).rejects.toBeInstanceOf(NotFoundException)
 
     expectNoReviewSideEffects()
   })
@@ -684,7 +684,7 @@ describe('UserVerificationsService.update', () => {
           status: UserVerificationStatus.APPROVED,
           rejectionReason: null,
         }),
-      ).rejects.toBeInstanceOf(SpongBadRequestException)
+      ).rejects.toBeInstanceOf(BadRequestException)
 
       expectNoReviewSideEffects()
     })
@@ -700,7 +700,7 @@ describe('UserVerificationsService.update', () => {
           status: UserVerificationStatus.REJECTED,
           rejectionReason,
         }),
-      ).rejects.toBeInstanceOf(SpongBadRequestException)
+      ).rejects.toBeInstanceOf(BadRequestException)
 
       expectNoReviewSideEffects()
     })
