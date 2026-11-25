@@ -1,28 +1,28 @@
-import { SpongBadRequestException, SpongNotFoundException } from 'riser-bob'
+import { BadRequestException, NotFoundException } from 'lykosjs'
 import { FollowSchema } from './schemas/follow.schema'
 import { UserSchema } from '../users/schemas/user.schema'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import { buildPagination } from '../../utilities/pagination'
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
 import type { NotificationsService } from '../notifications/notifications.service'
 import { NotificationType } from '../notifications/schemas/enums/notification-type'
 
 export class FollowsService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async toggle(followerId: string, followingId: string) {
     if (followerId === followingId) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'You cannot follow yourself',
       })
     }
 
-    const result = await this.db.transaction(async (transaction) => {
+    const result = await this.db.connection.transaction(async (transaction) => {
       const [followingUser] = await transaction
         .select()
         .from(UserSchema)
@@ -30,7 +30,7 @@ export class FollowsService {
         .limit(1)
 
       if (!followingUser) {
-        throw new SpongNotFoundException({
+        throw new NotFoundException({
           success: false,
           message: 'User not found',
         })
@@ -96,7 +96,7 @@ export class FollowsService {
 
     // Create a notification only when the user follows
     if ('success' in result) {
-      const [follower] = await this.db
+      const [follower] = await this.db.connection
         .select({
           id: UserSchema.id,
           firstName: UserSchema.firstName,
@@ -127,16 +127,20 @@ export class FollowsService {
   }
 
   async findFollowers(userId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
-    const [user] = await this.db.select().from(UserSchema).where(eq(UserSchema.id, userId)).limit(1)
+    const [user] = await this.db.connection
+      .select()
+      .from(UserSchema)
+      .where(eq(UserSchema.id, userId))
+      .limit(1)
 
     if (!user) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'User not found',
       })
     }
 
-    const followers = await this.db
+    const followers = await this.db.connection
       .select({
         follow: FollowSchema,
         follower: {
@@ -153,7 +157,7 @@ export class FollowsService {
       .limit(limit)
       .offset(offset)
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({ total: count() })
       .from(FollowSchema)
       .where(eq(FollowSchema.followingId, userId))
@@ -166,16 +170,20 @@ export class FollowsService {
   }
 
   async findFollowing(userId: string, page = 1, limit = 10, offset = (page - 1) * limit) {
-    const [user] = await this.db.select().from(UserSchema).where(eq(UserSchema.id, userId)).limit(1)
+    const [user] = await this.db.connection
+      .select()
+      .from(UserSchema)
+      .where(eq(UserSchema.id, userId))
+      .limit(1)
 
     if (!user) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'User not found',
       })
     }
 
-    const following = await this.db
+    const following = await this.db.connection
       .select({
         follow: FollowSchema,
         following: {
@@ -192,7 +200,7 @@ export class FollowsService {
       .limit(limit)
       .offset(offset)
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({ total: count() })
       .from(FollowSchema)
       .where(eq(FollowSchema.followerId, userId))
@@ -205,7 +213,7 @@ export class FollowsService {
   }
 
   async isFollowing(followerId: string, followingId: string) {
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select({
         id: UserSchema.id,
       })
@@ -214,13 +222,13 @@ export class FollowsService {
       .limit(1)
 
     if (!user) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'User not found',
       })
     }
 
-    const [follow] = await this.db
+    const [follow] = await this.db.connection
       .select({
         id: FollowSchema.id,
       })
@@ -236,7 +244,7 @@ export class FollowsService {
   }
 
   async countFollowers(userId: string) {
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select({
         id: UserSchema.id,
       })
@@ -245,13 +253,13 @@ export class FollowsService {
       .limit(1)
 
     if (!user) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'User not found',
       })
     }
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({
         total: count(),
       })
@@ -265,7 +273,7 @@ export class FollowsService {
   }
 
   async countFollowing(userId: string) {
-    const [user] = await this.db
+    const [user] = await this.db.connection
       .select({
         id: UserSchema.id,
       })
@@ -274,13 +282,13 @@ export class FollowsService {
       .limit(1)
 
     if (!user) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'User not found',
       })
     }
 
-    const [{ total } = { total: 0 }] = await this.db
+    const [{ total } = { total: 0 }] = await this.db.connection
       .select({
         total: count(),
       })
