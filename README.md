@@ -4,13 +4,13 @@
 
 **A Threads-style social platform API, engineered for consistency, real-time delivery, and provable correctness.**
 
-[![Bun](https://img.shields.io/badge/Bun-1.4-000000?logo=bun&logoColor=white)](https://bun.sh)
+[![Bun](https://img.shields.io/badge/Bun-runtime-000000?logo=bun&logoColor=white)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Drizzle_ORM-4169E1?logo=postgresql&logoColor=white)](https://orm.drizzle.team)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-real--time-010101?logo=socketdotio&logoColor=white)](https://socket.io)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)](#-api-documentation-openapi)
-[![Tests](https://img.shields.io/badge/tests-1219_passing-2ea44f)](#-testing-strategy)
-[![Framework](https://img.shields.io/badge/framework-RiserBob-ff9f1c)](https://github.com/ZenZN99/RiserBob)
+[![Tests](https://img.shields.io/badge/tests-bun_test-2ea44f)](#-testing-strategy)
+[![Framework](https://img.shields.io/badge/framework-LykosJS-ff9f1c)](https://github.com/lykosjs/lykos)
 
 </div>
 
@@ -25,7 +25,7 @@
 ## Project Overview
 
 Zentro is the backend of a Threads-like social network: posts with images, hashtags, mentions, quotes and reposts, threaded comments and replies, follows, likes, bookmarks, direct messages, live notifications, online presence, identity verification and a support desk.
-It runs on **Bun + TypeScript + PostgreSQL**, is built on **[RiserBob](https://github.com/ZenZN99/RiserBob)**, a framework I wrote from scratch, and is protected by **1,219 automated tests**.
+It runs on **Bun + TypeScript + PostgreSQL**, is built on **[LykosJS](https://github.com/lykosjs/lykos)**, a framework I wrote from scratch, and is covered by a large automated test suite (**35 test files, about 22,800 lines of test code**) that needs no database and no network.
 The API is documented with **OpenAPI 3.1** and can be explored and tested live in **Swagger UI**, straight from the running server.
 
 ---
@@ -37,7 +37,7 @@ The API is documented with **OpenAPI 3.1** and can be explored and tested live i
 - [Architecture](#-architecture)
 - [Testing Strategy](#-testing-strategy)
 - [Problems I Faced and How I Solved Them](#-problems-i-faced-and-how-i-solved-them)
-- [Built on RiserBob](#-built-on-riserbob)
+- [Built on LykosJS](#-built-on-lykosjs)
 - [Known Trade-offs and Roadmap](#-known-trade-offs-and-roadmap)
 - [Repository Layout](#-repository-layout)
 
@@ -49,14 +49,14 @@ The API is documented with **OpenAPI 3.1** and can be explored and tested live i
 
 | Tool | Version | Notes |
 | --- | --- | --- |
-| [Bun](https://bun.sh) | 1.3+ (developed on 1.4) | Runtime, package manager and test runner |
+| [Bun](https://bun.sh) | 1.3+ | Runtime, package manager and test runner |
 | PostgreSQL | 14+ | Any reachable instance, local or hosted |
 | [Cloudinary](https://cloudinary.com) account | free tier is enough | Image and file uploads |
 
 ### 1. Clone and install
 
 ```bash
-git clone github.com/ZenZN99/Zentro-Social-Network zentro
+git clone https://github.com/ZenZN99/Zentro-Social-Network.git zentro
 cd zentro/backend
 bun install
 ```
@@ -89,35 +89,34 @@ Generate strong secrets with:
 bun -e "console.log(crypto.randomUUID() + crypto.randomUUID())"
 ```
 
-> The API listens on port **4000** and allows CORS from the frontend origin in `src/url.ts` (`http://localhost:3000` by default). Change that constant for your deployment.
+> The API listens on port **4000** and allows CORS (with credentials) from the frontend origin in `src/url.ts` (`http://localhost:3000` by default). Change that constant for your deployment.
 
-### 3. Create the database schema
+### 3. Create the database
 
-The schema lives in code (`src/modules/**/schemas/*.schema.ts`, 19 tables) and is versioned with [Drizzle](https://orm.drizzle.team/docs/kit-overview) migrations. The repository ships the migration setup, so there is nothing to create by hand:
+The schema lives in code (`src/modules/**/schemas/*.schema.ts`, 19 tables) and is versioned with [Drizzle](https://orm.drizzle.team/docs/kit-overview) migrations. The repository ships the migration setup, so there is nothing to create by hand except an empty database:
 
 | Path | Purpose |
 | --- | --- |
 | `drizzle.config.ts` | drizzle-kit configuration (dialect, schema glob, output folder, database credentials from `.env`) |
 | `drizzle/` | Generated SQL migrations, committed to the repository |
-| `src/config/db/migrations.ts` | Migration configuration and execution for the application |
-
-Create the database, then apply the migrations:
+| `src/config/db/migrations.ts` | Runs the committed migrations from `./drizzle` when the application starts |
 
 ```bash
-createdb zentro                       # or create it from your SQL client
-bun add pg                            # PostgreSQL driver used by src/config/db/drizzle.ts (if not installed yet)
-bun add -d drizzle-kit                # only if drizzle-kit is not installed yet
-bunx drizzle-kit migrate              # apply the committed migrations from ./drizzle
+createdb zentro        # or create the database from your SQL client
 ```
 
-When you change a schema file, generate a new migration and apply it:
+**Migrations are applied automatically.** On every startup `src/launch.ts` checks the connection (`connectDB()`) and then applies any pending migration (`migrateDB()`), so a fresh database becomes a complete Zentro database the first time you run the server.
+
+> The migrations folder is resolved as `./drizzle`, so start the server from the `backend/` directory.
+
+When you change a schema file, generate a new migration. It is applied the next time the server starts, or immediately with `migrate`:
 
 ```bash
-bunx drizzle-kit generate             # writes a new SQL migration into ./drizzle
-bunx drizzle-kit migrate
+bunx drizzle-kit generate     # writes a new SQL migration into ./drizzle
+bunx drizzle-kit migrate      # optional: apply it right now
 ```
 
-For a throwaway local database you can still sync the schema directly without creating migration files:
+For a throwaway local database you can also sync the schema directly, without creating migration files:
 
 ```bash
 bunx drizzle-kit push
@@ -131,14 +130,15 @@ bun run dev
 
 ```text
 Database connected successfully.
-🧽 RiserBob is running at http://localhost:4000 🍍
+Database migrations completed.
+🐺 LykosJS is running at http://localhost:4000
 ```
 
 Check it:
 
 ```bash
 curl http://localhost:4000/
-# {"message":"Welcome to Bikini Bottom! 🍍"}
+# Welcome to LykosJS 🐺
 ```
 
 Then open the interactive API reference at **<http://localhost:4000/docs>**. See [API Documentation (OpenAPI)](#-api-documentation-openapi).
@@ -156,11 +156,11 @@ UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
 | Command | What it does |
 | --- | --- |
 | `bun run dev` | Start with hot reload (`bun run --watch src/launch.ts`) |
-| `bun test` | Run the full suite (1,219 tests) |
+| `bun test` | Run the full suite |
 | `bun test src/modules/comments/tests/comments.service.test.ts` | Run a single file |
 | `bun run typecheck` | Strict TypeScript check (`tsc --noEmit`) |
 | `bun run src/launch.ts` | Production start (Bun executes TypeScript directly) |
-| `bun build src/launch.ts --outdir dist --target bun --minify` | Optional single-file bundle, run with `bun dist/launch.js` |
+| `bun run build` | Optional single-file bundle into `dist/` (`bun build src/launch.ts --target=bun --outdir dist --minify`), run with `bun dist/launch.js` |
 | `bunx drizzle-kit generate` | Generate a new migration from schema changes |
 | `bunx drizzle-kit migrate` | Apply committed migrations to the configured database |
 
@@ -178,7 +178,7 @@ UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
 
 </div>
 
-Zentro ships with a complete, interactive API reference built on **[`@riser-bob/openapi`](https://github.com/ZenZN99/RiserBob)**. The documentation is generated from a single, centralized configuration, served by the same Bun process as the API itself, and **checked against the routes that are really registered**, so it describes the API that exists, not the API someone remembers.
+Zentro ships with a complete, interactive API reference built on **`@lykosjs/openapi`**. The documentation is generated from a single, centralized configuration, served by the same Bun process as the API itself, and **checked against the routes that are really registered**, so it describes the API that exists, not the API someone remembers.
 
 ### What you get
 
@@ -224,12 +224,12 @@ Because the page is served with a strict `Content-Security-Policy`, "Try it out"
 
 ### Authentication: the `CookieAuth` scheme
 
-Zentro does not use `Authorization` headers. Sessions travel in **httpOnly cookies** (see [Authentication and session design](#4-authentication-and-session-design)), and the OpenAPI documentation reflects that exactly: protected endpoints reference a **`CookieAuth`** security scheme, which OpenAPI describes as an API key carried in a cookie.
+Zentro does not use `Authorization` headers. Sessions travel in **httpOnly cookies** (see [Authentication and session design](#4-authentication-and-session-design)), and the OpenAPI documentation reflects that exactly: protected endpoints reference a **`CookieAuth`** security scheme, which OpenAPI describes as an API key carried in a cookie named `accessToken`.
 
 | Aspect | How it works |
 | --- | --- |
 | Scheme name | `CookieAuth` |
-| Transport | An API key sent in a **cookie**, not in a header or query string |
+| Transport | An API key sent in the **`accessToken` cookie**, not in a header or query string |
 | What it documents | *How* an endpoint authenticates. Enforcement still belongs to the middleware pipeline (`auth → active → role`) |
 | Public endpoints | Documented without the scheme |
 
@@ -247,9 +247,9 @@ To call a protected endpoint from Swagger UI:
 flowchart LR
   D["src/openapi/<br/>route definitions<br/>grouped by module"]
   N["names-space-routes.ts<br/>unique key + operationId<br/>per route"]
-  C["OpenAPI configuration<br/>info, CookieAuth, routes"]
-  R["Registered RiserBob routes<br/>(all feature modules)"]
-  S["setup(app)<br/>called from src/launch.ts"]
+  C["OpenAPIManager configuration<br/>info, CookieAuth, routes"]
+  R["Registered LykosJS routes<br/>(all feature modules)"]
+  S["openapi.setup(app)<br/>called from src/launch.ts"]
   UI["GET /docs<br/>Swagger UI"]
   J["GET /docs/json<br/>OpenAPI 3.1"]
 
@@ -259,8 +259,8 @@ flowchart LR
   S --> J
 ```
 
-- **Centralized.** `src/openapi/` holds the OpenAPI configuration and the route definitions, so documentation never leaks into controllers or route files.
-- **Startup integration.** The documentation is set up from `src/launch.ts`. The library requires `setup()` to run after every application route has been registered, because routes registered later are neither validated nor documented.
+- **Centralized.** `src/openapi/` holds the `OpenAPIManager` configuration (`openapi.ts`) and one route-definition file per module, so documentation never leaks into controllers or route files.
+- **Startup integration.** The documentation is set up from `src/launch.ts` with `openapi.setup(app)`. The library requires `setup()` to run after every application route has been registered, because routes registered later are neither validated nor documented. That is why the call comes right after `app.modules(Modules)`.
 - **Generated once.** The document is built and serialized at startup. Requests to the docs only send the stored result.
 - **No drift.** By default, every documented route must exist with the same method and path. Documentation for an endpoint that was never built is an error, and a typo in the configuration is reported instead of silently ignored.
 
@@ -274,19 +274,28 @@ Route definitions are plain objects keyed by a documentation key, and that key b
 const routes = { ...postsDocs, ...commentsDocs }
 ```
 
-`src/utilities/names-space-routes.ts` prevents this. It gives every route a **unique key and operation ID**, so combining the route objects of many modules never overwrites anything and all endpoints appear in the generated OpenAPI document.
+`src/utilities/names-space-routes.ts` prevents this. It prefixes every key with its module name (`posts` + `create` becomes `postsCreate`), so combining the route objects of many modules never overwrites anything and all endpoints appear in the generated OpenAPI document:
+
+```ts
+routes: {
+  ...namespaceRoutes('auth', authAPI),
+  ...namespaceRoutes('posts', postsAPI),
+  ...namespaceRoutes('comments', commentsAPI),
+  // ...one line per module
+}
+```
 
 > The same rule is stated by the library: documentation keys must be unique across merged objects, because a later key replaces an earlier one with the same name.
 
 ### Documented modules
 
-Route definitions were organized for the new documentation structure across the API, including Authentication, Bookmarks, Comments, Follows, Messages, Post reposts, Replies and Support messages. See the [API surface](#11-api-surface) for the full list of resource groups.
+All 16 resource groups are documented: Auth, Users, User profiles, User verifications, Posts, Hashtags, Reposts, Comments, Replies, Likes, Follows, Bookmarks, Conversations, Messages, Notifications and Support (conversations and messages). See the [API surface](#11-api-surface) for the full list.
 
 ---
 
 ## 🏛 Architecture
 
-Zentro is a **modular monolith**: one deployable process, 15 top-level feature modules (plus 5 post sub-modules), strict one-way dependencies, and every collaborator injected through a constructor. There is no hidden global state in the business layer, which is what makes 1,219 fast, deterministic tests possible.
+Zentro is a **modular monolith**: one deployable process, 15 top-level feature modules (plus 5 post sub-modules), strict one-way dependencies, and every collaborator injected through a constructor. There is no hidden global state in the business layer, which is what makes the test suite fast and deterministic.
 
 ### 1. System context
 
@@ -296,7 +305,7 @@ flowchart LR
 
   subgraph Zentro["Zentro Backend (single Bun process)"]
     direction TB
-    API["RiserBob HTTP server<br/>routing, CORS, logging,<br/>validation, auth pipeline"]
+    API["LykosJS HTTP server<br/>routing, CORS, logging,<br/>validation, auth pipeline"]
     MOD["Feature modules<br/>controller, service, schema"]
     RT["Socket.IO server<br/>cookie-auth handshake<br/>+ gateways"]
     DOCS["OpenAPI documentation<br/>Swagger UI + JSON spec"]
@@ -313,19 +322,32 @@ flowchart LR
 
 ### 2. Module anatomy
 
-Every feature follows the same four-layer shape. The composition root is the module class, the only place where concrete dependencies are created and wired.
+Every feature follows the same shape. The composition root is the module class, a `DIModule` that declares which providers, controllers and routers exist and how they depend on each other. LykosJS builds the object graph from those declarations, so nothing in the business layer ever calls `new` on a collaborator.
+
+```ts
+export class AuthModule extends DIModule {
+  override providers = [Database, bind(AuthService, Database)]
+  override controllers = [bind(AuthController, AuthService)]
+  override routers = [bind(AuthRouter, Lykos, AuthController, AuthMiddleware)]
+  override auth = defineAuth({
+    verifier: AuthController,
+    mode: 'cookie',
+    cookieName: 'accessToken',
+  })
+}
+```
 
 ```mermaid
 flowchart TB
-  M["*.module.ts<br/>composition root"]
-  R["*.route.ts<br/>URL, verb, middleware chain"]
+  M["*.module.ts<br/>DIModule: providers, controllers,<br/>routers, imports, auth"]
+  R["*.route.ts<br/>register(): URL, verb, middleware chain"]
   C["*.controller.ts<br/>HTTP in / out, no business rules"]
   S["*.service.ts<br/>business rules, transactions,<br/>ownership checks"]
   SC["schemas/*.schema.ts<br/>tables, indexes, constraints, enums"]
   RU["rules/*.ts<br/>declarative input validation"]
   T["tests/<br/>service + controller suites"]
 
-  M -->|"creates and wires"| R
+  M -->|"binds and wires"| R
   M --> C
   M --> S
   R --> C
@@ -338,12 +360,13 @@ flowchart TB
 
 | Layer | Owns | Must never |
 | --- | --- | --- |
-| **Controller** | Parse the request, read `spongReq.user`, call exactly one service method, shape the response | Contain business logic or touch the database |
+| **Controller** | Parse the request (`ctx.json()`, `ctx.formData()`, `ctx.params`), read `ctx.user`, validate with a rule, call one service method, shape the response | Contain business logic or touch the database |
+| **Router** | Declare URLs, verbs and the middleware chain in `register()` | Contain logic |
 | **Service** | Business rules, ownership and permission checks, transaction boundaries, counters, notifications | Know about HTTP details such as cookies or headers (the auth module is the single deliberate exception) |
 | **Schema** | Tables, foreign keys, cascade rules, unique and secondary indexes, enums | Hold behavior |
-| **Module** | Dependency wiring (`new Service(database, …)`) | Contain logic |
+| **Module** | Dependency wiring (`bind(Service, Database, …)`) | Contain logic |
 
-Services receive the database as `typeof database` through their constructor, so tests inject a fake and production injects the Drizzle client. The pagination helper, sanitizer and username generator live in `src/utilities/` and are reused by every module.
+Services receive a `Database` instance through their constructor and run queries on `this.db.connection` (the Drizzle client). Tests inject a fake connection and production injects the real one. The pagination helper, sanitizer and username generator live in `src/utilities/` and are reused by every module.
 
 ### 3. Request lifecycle
 
@@ -360,12 +383,12 @@ sequenceDiagram
   participant S as Service
   participant D as PostgreSQL
 
-  C->>R: PUT /api/comments/:id (cookie accessToken)
+  C->>R: PUT /api/comments/:commentId (cookie accessToken)
   R->>A: run middleware chain
-  A->>A: verify the access token
-  A->>D: SELECT id, isActive, role WHERE id = token.id
+  A->>K: verifier: verifyToken(cookie value)
+  K->>D: verifyUser: verify JWT, then SELECT id, isActive, role
   D-->>A: current user row
-  A->>U: spongReq.user attached
+  A->>U: ctx.user attached
   U->>U: reject when isActive is false
   U->>K: request continues
   K->>S: update(userId, commentId, content)
@@ -377,8 +400,8 @@ sequenceDiagram
 
 Two consequences worth calling out:
 
-- **Blocking takes effect on the very next request.** `isActive` and `role` are read from PostgreSQL on every authenticated call, never trusted from a token minted earlier.
-- **Role-based routes compose, they do not branch.** `ProtectedMiddleware` builds a pipeline (`auth → active → role`) and exposes `auth()`, `admin()` and `adminAndSupport()`.
+- **Blocking takes effect on the very next request.** `isActive` and `role` are read from PostgreSQL on every authenticated call by `verifyUser`, never trusted from a token minted earlier.
+- **Role-based routes compose, they do not branch.** `ProtectedMiddleware` builds a `MiddlewarePipeline` (`auth → active → role`) and exposes `auth()`, `admin()` and `adminAndSupport()`. Routers that need no role gate attach `authMiddleware.middleware` and `userActiveMiddleware.middleware` directly.
 
 ### 4. Authentication and session design
 
@@ -386,11 +409,14 @@ Two consequences worth calling out:
 sequenceDiagram
   autonumber
   participant C as Client
+  participant K as AuthController
   participant API as AuthService
   participant D as PostgreSQL
 
-  C->>API: register / login
-  API->>API: validate body, bcrypt (cost 12)
+  C->>K: POST /api/auth/register or /login
+  K->>K: Validator.validate(body, rule), 422 on failure
+  K->>API: register / login
+  API->>API: bcrypt (cost 12)
   API->>API: sign access + refresh token pair
   API->>D: store bcrypt(refreshToken)
   API-->>C: Set-Cookie accessToken, refreshToken (httpOnly)
@@ -461,7 +487,7 @@ Design choices that matter:
 - **Polymorphic likes without a polymorphic foreign key.** A like carries one nullable foreign key per target (`postId`, `commentId`, `replyId`), each with its own unique index and cascade rule, so referential integrity is real.
 - **Indexes follow the queries.** `posts(authorId, createdAt)`, `comments(postId, createdAt)`, `hashtags(postsCount)`, `notifications(receiverId)` and others exist because a service query sorts or filters on exactly those columns.
 - **Hashtag creation is race-safe.** `findOrCreate` uses `ON CONFLICT DO NOTHING` on the unique name, then re-reads.
-- **Schema changes are versioned.** Every change to a table is captured as a Drizzle migration in `drizzle/`, so any environment can be brought to the same schema with `drizzle-kit migrate`.
+- **Schema changes are versioned.** Every change to a table is captured as a Drizzle migration in `drizzle/`, and the server applies pending migrations on startup, so any environment converges to the same schema.
 
 ### 6. Consistency model: what is atomic and what is best-effort
 
@@ -493,7 +519,7 @@ sequenceDiagram
 
   B->>IO: connect (cookies in handshake)
   IO->>AD: middleware
-  AD->>AD: parse auth cookie, verify JWT, set socket.data.user
+  AD->>AD: parse handshake cookies, verify JWT, set socket.data.user
   AD-->>IO: accepted, or rejected as Unauthorized
   IO->>PG: handleConnection
   PG-->>B: emit online-users (deduplicated user ids)
@@ -503,6 +529,8 @@ sequenceDiagram
   NS->>NG: sendNotification(fullRecord)
   NG-->>B: emit receive-notification to every socket of that user
 ```
+
+The Socket.IO server is created by LykosJS itself (`app.socketIO({ cors })` in `src/launch.ts`) and shares the process, the port and the CORS policy of the HTTP API.
 
 | Event (server → client) | Emitted by | Payload |
 | --- | --- | --- |
@@ -514,7 +542,7 @@ sequenceDiagram
 | `message-deleted` | `MessagesGateway` | `{ messageId }` |
 
 - **Multi-device by design.** Each gateway tracks `(userId, socketId)` pairs, so one user can be online on a phone and a laptop and receives events on both. Presence counts a user once.
-- **No gateway cycles.** `NotificationsService` depends on `NotificationsGateway`, so the gateway is deliberately forbidden from depending on the service. Inbound socket events (mark as read) live in a separate `NotificationSocketGateway`.
+- **No gateway cycles.** `NotificationsService` depends on `NotificationsGateway`, so the gateway is deliberately forbidden from depending on the service. Inbound socket events (mark as read) belong in a separate `NotificationSocketGateway` that depends on the service.
 - **The socket is authenticated before it exists.** A connection with no valid cookie is rejected during the handshake and never reaches any gateway.
 
 ### 8. Feed visibility model
@@ -526,21 +554,34 @@ Posts carry a `visibility` of `public`, `followers` or `private`. The feed query
 | Anyone | `public` posts |
 | Authenticated user | `public` + own posts of any visibility + `followers` posts from authors they follow |
 
-Total counts reuse the same predicate, so pagination metadata can never disagree with the rows shown. Pagination is capped (`limit ≤ 100`, `page ≥ 1`) in one shared helper and returns `total`, `totalPages`, `hasNextPage` and `hasPreviousPage`.
+Total counts reuse the same predicate, so pagination metadata can never disagree with the rows shown. Pagination is capped (`limit ≤ 100`, `page ≥ 1`) in one shared helper (`getPagination` and `buildPagination`) and returns `total`, `totalPages`, `hasNextPage` and `hasPreviousPage`.
 
 ### 9. Security model
 
 | Concern | Mechanism |
 | --- | --- |
-| Authentication | JWT (HS256) in httpOnly cookies, verified against the database each request |
+| Authentication | JWT (HS256) in httpOnly cookies, verified against the database on each request |
 | Authorization | Role pipeline: `user`, `support`, `admin`. Ownership is enforced in services, never trusted from the request body |
-| Input validation | Declarative `rules/*.ts` schemas for every endpoint that accepts structured input, returning `422` with field errors |
+| Input validation | Declarative `rules/*.ts` schemas (`defineSchema` + `Validator`) for every endpoint that accepts structured input, returning `422` with field errors |
 | SQL injection | Drizzle builders and `sql` template parameters only. There is no string concatenation into SQL, and the test suite asserts that injection-looking ids are passed as bound parameters |
 | Prototype-key abuse | Polymorphic targets are resolved with `Object.hasOwn`, so inputs like `constructor` are rejected as an invalid target type |
 | Secrets | Environment variables only. `.env` is git-ignored and `.env.example` ships with placeholders |
 | Credential leakage | `sanitizeUser()` on every user payload, bcrypt cost 12 |
 | Account lifecycle | Admins can block a user. The block applies on the next request and the user is notified |
 | API documentation | Served locally with a strict `Content-Security-Policy` (no CDN, no inline scripts). It only describes authentication and never issues, reads or stores tokens |
+
+A validation rule is plain, readable data. This is the rule behind `POST /api/posts`:
+
+```ts
+export const CreatePostRule = defineSchema({
+  content: Validator.string(3, 300).required(),
+  visibility: Validator.enum(VisibilityStatus).required(),
+  isPin: Validator.boolean().required(),
+  mentions: Validator.array(1, 10).optional(),
+  hashtags: Validator.array(1, 10).optional(),
+  quotedPostId: Validator.text().optional(),
+})
+```
 
 ### 10. Failure-mode matrix
 
@@ -554,33 +595,32 @@ Total counts reuse the same predicate, so pagination metadata can never disagree
 | Socket without a valid cookie | Handshake rejected | Never reaches a gateway |
 | Blocked account with a still-valid token | `403` on the next request | `isActive` is read from the database |
 | A documented route is not registered | Server fails at startup with a hint | Stale documentation is never served |
+| Database unreachable or a migration fails at startup | The process exits with an error | The server never starts against a wrong schema |
 
 ### 11. API surface
 
-73 route registrations across 16 resource groups. Protected routes run `auth → active`; admin routes add the role gate. Every group is browsable in [Swagger UI](#-api-documentation-openapi).
+73 route registrations across 16 resource groups (38 `GET`, 16 `POST`, 8 `PUT`, 4 `PATCH`, 7 `DELETE`). Protected routes run `auth → active`; admin routes add the role gate. Every group is browsable in [Swagger UI](#-api-documentation-openapi).
 
 | Group | Prefix | Highlights |
 | --- | --- | --- |
-| Auth | `/api/auth` | `register`, `login`, `refreshToken`, `logout`, `me` |
-| Users | `/api/users` | list, get by username. Admin: `PATCH /:userId` (role), `DELETE /:userId` (block) |
-| Profiles | `/api/user-profiles` | `PUT` avatar, cover, bio, socials, privacy |
+| Auth | `/api/auth` | `POST register`, `POST login`, `POST refreshToken`, `POST logout`, `GET me` |
+| Users | `/api/users` | list and get by username (public). Admin: `PATCH /:userId` (role), `DELETE /:userId` (block) |
+| Profiles | `/api/user-profiles` | `PUT` avatar, cover, bio, website and socials (multipart) |
 | Posts | `/api/posts` | feed, by id, by user, `me`, create, update, delete |
 | Hashtags | `/api/hashtags` | trending (ordered by `postsCount`, then name) |
-| Reposts | `/api/reposts` | repost, `me`, by user |
-| Comments | `/api/comments` | list by post, get, `me`, create, update, delete |
-| Replies | `/api/replies` | nested threads under a comment |
-| Likes | `/api/likes` | toggle, list, count and `is-liked` for `post`, `comment` or `reply` |
+| Reposts | `/api/reposts` | `POST /:postId`, `GET /me`, `GET /:userId` |
+| Comments | `/api/comments` | list by post (`/:postId/all`), get, `me`, create, update, delete |
+| Replies | `/api/replies` | nested threads under a comment (`/:commentId/all`), get, `me`, create, update, delete |
+| Likes | `/api/likes` | toggle, list, `me`, count and `is-liked` for `post`, `comment` or `reply` |
 | Follows | `/api/follows` | toggle, followers, following, counts, `is-following` |
-| Bookmarks | `/api/bookmarks` | toggle, `me`, counts |
-| Conversations | `/api/conversations` | `me`, get, mute |
+| Bookmarks | `/api/bookmarks` | toggle, `me`, per-post and personal counts, `is-bookmarked` |
+| Conversations | `/api/conversations` | `me`, get, mute (`PATCH`) |
 | Messages | `/api/messages` | send (with up to 5 attachments), list, mark read, unread count, delete |
 | Notifications | `/api/notifications` | `me`, mark one or all as read, delete |
-| Verifications | `/api/user-verifications` | submit documents. Admin: pending queue and approve or reject |
+| Verifications | `/api/user-verifications` | submit documents. Admin: pending queue and `PATCH /:verificationId/status` |
 | Support | `/api/support-conversations`, `/api/support-messages` | tickets and messages. Admin and support staff see the queue, admins open or close tickets |
 
-On top of the application routes, the OpenAPI integration registers its own documentation routes: the Swagger UI page at `/docs`, the specification at `/docs/json` and the static Swagger UI assets under `/docs/assets/`.
-
-> Note on the current auth routes: `register` and `login` are registered with the `GET` verb in `src/modules/auth/auth.route.ts`, exactly as listed above in the code.
+On top of the application routes, the OpenAPI integration registers its own documentation routes: the Swagger UI page at `/docs` and the specification at `/docs/json`. The root route `GET /` answers with a welcome message.
 
 ---
 
@@ -588,23 +628,16 @@ On top of the application routes, the OpenAPI integration registers its own docu
 
 <div align="center">
 
-| Test cases | Assertions | Test files | Failures | Wall time |
-| :---: | :---: | :---: | :---: | :---: |
-| **1,219** | **2,680** | **35** | **0** | **≈ 0.55 s** |
+| Test files | Test code | Production code | Needs a database? |
+| :---: | :---: | :---: | :---: |
+| **35** | **≈ 22,800 lines** | **≈ 11,800 lines** | **No** |
 
 </div>
 
-The suite contains **23,000+ lines of test code for ~10,000 lines of production code**, so there are more than twice as many lines verifying behavior as there are implementing it. It needs no database, no network and no Cloudinary account, which is why the entire thing runs in about half a second.
+There are nearly twice as many lines verifying behavior as there are implementing it. The suite needs no database, no network and no Cloudinary account, so the whole thing runs in a moment.
 
 ```bash
 bun test
-```
-
-```text
- 1219 pass
- 0 fail
- 2680 expect() calls
-Ran 1219 tests across 35 files.
 ```
 
 ### Test architecture: a fake database that behaves like Drizzle
@@ -623,6 +656,7 @@ flowchart LR
 - `QueryChain` is a **thenable**. Every builder method (`from`, `where`, `leftJoin`, `orderBy`, `limit`, `offset`, `values`, `set`, `returning`) returns the same chain, and `await`-ing it pops exactly one pre-programmed outcome.
 - An outcome is either rows or an error, so database failures are simulated in one line.
 - `transaction()` runs its callback against the same fake, so transactional code paths execute for real.
+- Services are constructed with the fake as their connection, for example `new AuthService({ connection: db } as unknown as Database)`.
 
 The consequence is subtle and powerful: **a test encodes the exact sequence of queries the service must run.** If someone adds, removes or reorders a query, the suite fails loudly. The outcome list reads like an executable specification of the transaction:
 
@@ -646,26 +680,13 @@ db.setOutcomes([
 | Failure propagation | DB errors surface untouched, at every step including mid-transaction |
 | Side-effect isolation | A failing notification never fails the like, comment or follow |
 | Idempotency and dedupe | Duplicate hashtag ids removed, `onConflictDoNothing` honored, only truly inserted rows returned |
-| Security | Injection-looking ids treated as bound parameters, never as SQL |
+| Security | Injection-looking ids treated as bound parameters, never as SQL; identity taken from the session, never from the body |
 | Pagination | Default arguments, empty results, zero totals when the count query returns no rows |
-| Controllers | Request parsing, user extraction, JSON error propagation, response mapping |
+| Controllers | Request parsing, user extraction, validation (`422`), JSON error propagation, response mapping |
 
-### Distribution
+### Where the tests live
 
-| Module | Tests | | Module | Tests |
-| --- | ---: | --- | --- | ---: |
-| posts | 120 | | user-profiles | 66 |
-| messages | 99 | | notifications | 61 |
-| likes | 95 | | user-verifications | 60 |
-| replies | 91 | | hashtags | 57 |
-| support-messages | 88 | | comments | 48 |
-| post-reposts | 74 | | bookmarks | 46 |
-| support-conversations | 72 | | follows | 44 |
-| post-mentions | 43 | | auth | 42 |
-| post-hashtags | 37 | | post-quotes | 29 |
-| users | 28 | | conversations | 19 |
-
-**789** service tests verify business rules and transactions. **430** controller tests verify the HTTP edge.
+Every module keeps its tests next to its code: `src/modules/<module>/tests/<module>.service.test.ts` for business rules and transactions, and `<module>.controller.test.ts` for the HTTP edge. Sub-modules such as `post-hashtags`, `post-mentions` and `post-quotes` have service suites, and `hashtags` and `post-reposts` have both.
 
 ---
 
@@ -695,7 +716,7 @@ These are the real engineering problems this codebase had to survive. Each one i
 
 **Problem.** `NotificationsService` needs a gateway to push events, and handling an inbound "mark as read" event needs the service. Wiring both ways creates a cycle.
 
-**Solution.** The outbound gateway only pushes and is forbidden from depending on the service. Inbound events live in a separate `NotificationSocketGateway` that depends on the service. The rule is written as a comment at the top of the gateway so the next contributor does not undo it.
+**Solution.** The outbound gateway only pushes and is forbidden from depending on the service. Inbound events belong in a separate `NotificationSocketGateway` that depends on the service. The rule is written as a comment at the top of the gateway so the next contributor does not undo it.
 
 ### 5. One user, many devices
 
@@ -731,7 +752,7 @@ These are the real engineering problems this codebase had to survive. Each one i
 
 **Problem.** A JWT remains valid until it expires, so a purely token-based check would let a blocked account keep working.
 
-**Solution.** Authentication verifies the token and then loads `isActive` and `role` from PostgreSQL on every request. An admin block applies on the very next call.
+**Solution.** The auth verifier (`verifyUser`) checks the token and then loads `isActive` and `role` from PostgreSQL on every request. An admin block applies on the very next call.
 
 ### 11. Unique usernames at registration
 
@@ -751,32 +772,37 @@ These are the real engineering problems this codebase had to survive. Each one i
 
 **Solution.** `src/utilities/names-space-routes.ts` namespaces every route, giving each one a unique key and operation ID before the objects are combined. Nothing can be overwritten, and every endpoint appears in Swagger UI and in the JSON specification.
 
+### 14. Module mocks that leak between test files
+
+**Problem.** Bun's `mock.module` is process-wide. A test file that replaced `lykosjs` with a stub holding only a fake `Validator.validate` also changed what every file loaded after it saw, so unrelated rule files crashed with `Validator.string is not a function`. The failure showed up in other files' output, far from its real cause.
+
+**Solution.** Tests never replace the whole `Validator`. They `spyOn(Validator, 'validate')` and restore it after each test. When a module has to be mocked (pagination, Cloudinary, cookies), the real module is copied into a plain object **before** mocking and restored in `afterAll`, because restoring from the live module namespace would put the mock back.
+
 ---
 
-## 🧽 Built on RiserBob
+## 🐺 Built on LykosJS
 
-Zentro runs on **[RiserBob](https://github.com/ZenZN99/RiserBob)**, a Bun and TypeScript backend framework that I designed and built from scratch. Zentro is its largest real-world consumer: 73 routes, cookie authentication, role pipelines, file uploads, Socket.IO and generated API documentation all run through it, which makes the app a continuous proving ground for the framework.
-
-**Repository:** <https://github.com/ZenZN99/RiserBob> · **Docs:** <https://riserbob.vercel.app/docs>
+Zentro runs on **[LykosJS](https://github.com/lykosjs/lykos)**, a Bun and TypeScript backend framework that I designed and built from scratch. Zentro is its largest real-world consumer: 73 routes, cookie authentication, role pipelines, dependency-injected modules, file uploads, Socket.IO and generated API documentation all run through it, which makes the app a continuous proving ground for the framework.
 
 ```bash
-bun create riser-bob my-app
-# or
-bun add riser-bob
+bun add lykosjs
 ```
 
-| RiserBob capability | How Zentro uses it |
+| LykosJS capability | How Zentro uses it |
 | --- | --- |
-| `RiserBob` app, `spongGroup`, `spongGet/Post/Put/Patch/Delete` | Nested, middleware-scoped route groups in every module |
-| `MiddlewarePipeline`, `AuthMiddleware` (cookie mode) | `ProtectedMiddleware` composes `auth → active → role` |
+| `Lykos` app: `group`, `GET/POST/PUT/PATCH/DELETE`, `use`, `listen` | Nested, middleware-scoped route groups in every router |
+| `DIModule`, `bind`, `app.modules([...])` | Every feature is a module that declares its providers, controllers and routers. The 20 modules are registered in `src/modules.ts` |
+| `defineAuth`, `AuthMiddleware` (cookie mode) | Each module declares a cookie verifier. `verifyUser` re-checks the user in PostgreSQL |
+| `MiddlewarePipeline` | `ProtectedMiddleware` composes `auth → active → role` |
 | `corsMiddleware`, `loggerMiddleware` | Global CORS with credentials, request logging |
-| `defineSchema`, `rules`, `passwordRules`, `Validator` | Declarative request validation with `422` field errors |
-| `Sponge*Exception` classes, `SpongOK`, `SpongHandler` types | A uniform `{ success, message, data }` contract and typed controllers |
-| `spongSocketIO` | Socket.IO server attached to the same process |
-| `@riser-bob/jwt` | `JwtManager` with separate access and refresh secrets, issuer and audience |
-| `@riser-bob/cookie` | `CookieManager` for httpOnly session cookies |
-| `@riser-bob/cloudinary` | Image and file upload and deletion |
-| `@riser-bob/openapi` | OpenAPI 3.1 documentation, Swagger UI, the JSON specification and the `CookieAuth` security scheme, checked against the registered routes |
+| `defineSchema`, `Validator` | Declarative request validation (`string`, `text`, `enum`, `array`, `boolean`, `email`, `url`, `required`, `optional`, `nullable`) with `422` field errors |
+| `ContextHandler`, `Context`, `Reply` | Typed controllers: `ctx.user`, `ctx.params`, `ctx.query`, `ctx.json()`, `ctx.formData()`, and `reply.OK`, `Created`, `BadRequest`, `NotFound`, `Forbidden`, `UnprocessableContent` |
+| `BadRequestException`, `NotFoundException`, `ForbiddenException`, `UnauthorizedException`, `InternalServerErrorException`, `HttpError` | A uniform `{ success, message, data }` error contract |
+| `app.socketIO()` | Socket.IO server attached to the same process |
+| `@lykosjs/jwt` | `JwtManager` with separate access and refresh secrets, issuer, audience and HS256 |
+| `@lykosjs/cookie` | `CookieManager` for httpOnly session cookies |
+| `@lykosjs/cloudinary` | `CloudinaryManager.fromEnv()` for image and file upload and deletion |
+| `@lykosjs/openapi` | `OpenAPIManager`: OpenAPI 3.1 documentation, Swagger UI, the JSON specification and the `CookieAuth` security scheme, checked against the registered routes |
 
 ---
 
@@ -791,8 +817,8 @@ An honest architecture document names its limits.
 | Deep pagination | Offset pagination with deterministic ordering | Keyset (cursor) pagination for very large feeds |
 | Refresh tokens | Hashed at rest, a refresh issues a new access token | Rotation with reuse detection |
 | Abuse protection | Validation and auth guards | Rate limiting on auth and write endpoints |
-| Test depth | 1,219 fast unit and controller tests against a simulated database | Integration suite against a real PostgreSQL in CI |
-| Schema management | Versioned Drizzle migrations committed in `drizzle/` | Apply and verify migrations against a real PostgreSQL in CI |
+| Test depth | Fast unit and controller tests against a simulated database | Integration suite against a real PostgreSQL in CI |
+| Schema management | Versioned Drizzle migrations committed in `drizzle/` and applied on startup | Apply and verify migrations against a real PostgreSQL in CI |
 
 **Production checklist**
 
@@ -800,8 +826,8 @@ An honest architecture document names its limits.
 - Set `DB_SSL=true` for hosted PostgreSQL.
 - Change `FRONTEND_URL` in `src/url.ts` to your real origin.
 - Use long, unique, different values for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`.
-- Apply the committed migrations (`bunx drizzle-kit migrate`) before starting a new version against an existing database.
-- Remember that API documentation reveals your endpoints, parameters and error responses. Decide whether `/docs` and `/docs/json` should be public in production, and protect them with RiserBob middleware or keep them off if they should not be.
+- Migrations run automatically on startup. Back up the database before deploying a version that adds a migration to an existing one.
+- Remember that API documentation reveals your endpoints, parameters and error responses. Decide whether `/docs` and `/docs/json` should be public in production, and protect them with LykosJS middleware or keep them off if they should not be.
 
 ---
 
@@ -810,12 +836,12 @@ An honest architecture document names its limits.
 ```text
 backend/
 ├── drizzle.config.ts             # drizzle-kit configuration
-├── drizzle/                      # generated SQL migrations
+├── drizzle/                      # generated SQL migrations (applied on startup)
 ├── src/
-│   ├── launch.ts                 # bootstrap: DB check, middleware, Socket.IO, modules, OpenAPI, listen
-│   ├── modules.ts                # registers every feature module
+│   ├── launch.ts                 # bootstrap: DB check, migrations, CORS + logger, Socket.IO, modules, OpenAPI, listen
+│   ├── modules.ts                # the list of every feature module
 │   ├── url.ts                    # allowed frontend origin
-│   ├── openapi/                  # OpenAPI configuration + route definitions grouped by module
+│   ├── openapi/                  # OpenAPIManager configuration + route definitions grouped by module
 │   ├── config/
 │   │   ├── adapters/             # Socket.IO cookie-auth handshake
 │   │   ├── cloudinary/           # upload client
@@ -861,6 +887,6 @@ The world is a little better for every developer who refuses to give up.
 
 Made with ❤️, Bun, and a lot of coffee by [ZenZN99](https://github.com/ZenZN99)
 
-⭐ If Zentro or [RiserBob](https://github.com/ZenZN99/RiserBob) helped you, a star means the world.
+⭐ If Zentro or [LykosJS](https://github.com/lykosjs/lykos) helped you, a star means the world.
 
 </div>
