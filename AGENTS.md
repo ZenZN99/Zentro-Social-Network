@@ -18,7 +18,7 @@ Never assume that a feature exists simply because it is described in documentati
 
 - Bun Runtime
 - TypeScript
-- RiserBob HTTP Framework
+- LykosJS HTTP Framework
 - PostgreSQL
 - Drizzle ORM
 - @riser-bob/jwt
@@ -107,7 +107,7 @@ Never use unsafe SQL concatenation with user input.
 
 ## 5. API Development
 
-Use the existing RiserBob framework conventions.
+Use the existing LykosJS framework conventions.
 
 Follow existing patterns for:
 
@@ -119,7 +119,7 @@ Follow existing patterns for:
 - HTTP exceptions.
 - Response serialization.
 
-Do not invent APIs or framework methods. Inspect the installed RiserBob version and existing code before using unfamiliar methods.
+Do not invent APIs or framework methods. Inspect the installed LykosJS version and existing code before using unfamiliar methods.
 
 Preserve established API response contracts.
 
