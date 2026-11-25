@@ -1,31 +1,19 @@
-import type { RiserBob } from 'riser-bob'
-import { AuthMiddleware } from 'riser-bob'
+import { AuthMiddleware, bind, defineAuth, DIModule, Lykos, value } from 'lykosjs'
+import { Database } from '../../config/db/drizzle'
 import { BookmarksController } from './bookmarks.controller'
-import { BookmarksRouter } from './bookmarks.route'
-import { database } from '../../config/db/drizzle'
 import { BookmarksService } from './bookmarks.service'
+import { BookmarksRouter } from './bookmarks.route'
 import { UserActiveMiddleware } from '../../config/middlewares/user-active.middleware'
-import { verifyUser } from '../../config/token/verify-user'
 
-export class BookmarksModule {
-  register(bob: RiserBob): void {
-    const bookmarksService = new BookmarksService(database)
-    const bookmarksController = new BookmarksController(bookmarksService)
-
-    const authMiddleware = new AuthMiddleware(verifyUser, {
-      mode: 'cookie',
-      cookieName: 'accessToken',
-    })
-
-    const userActiveMiddleware = new UserActiveMiddleware()
-
-    const router = new BookmarksRouter(
-      bob,
-      bookmarksController,
-      authMiddleware,
-      userActiveMiddleware,
-    )
-
-    router.register()
-  }
+export class BookmarksModule extends DIModule {
+  override providers = [Database, bind(BookmarksService, Database), UserActiveMiddleware]
+  override controllers = [bind(BookmarksController, BookmarksService)]
+  override routers = [
+    bind(BookmarksRouter, Lykos, BookmarksController, AuthMiddleware, UserActiveMiddleware),
+  ]
+  override auth = defineAuth({
+    verifier: BookmarksController,
+    mode: 'cookie',
+    cookieName: 'accessToken',
+  })
 }
