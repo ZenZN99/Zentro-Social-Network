@@ -3,16 +3,16 @@ import { UserSchema } from '../users/schemas/user.schema'
 import { UserProfileSchema } from '../user-profiles/schemas/user-profile.schema'
 import { UserVerificationStatus } from './schemas/enums/user-verification-status'
 import cloudinary from '../../config/cloudinary/cloudinary'
-import type { database } from '../../config/db/drizzle'
+import type { Database } from '../../config/db/drizzle'
 import { asc, count, eq, inArray } from 'drizzle-orm'
 import type { NotificationsService } from '../notifications/notifications.service'
 import { UserRole } from '../users/schemas/enums/user-role'
 import { NotificationType } from '../notifications/schemas/enums/notification-type'
-import { SpongBadRequestException, SpongNotFoundException } from 'riser-bob'
+import { BadRequestException, NotFoundException } from 'lykosjs'
 
 export class UserVerificationsService {
   constructor(
-    private readonly db: typeof database,
+    private readonly db: Database,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -22,7 +22,7 @@ export class UserVerificationsService {
       get(name: string): string | File | null
     },
   ) {
-    const [existingVerification] = await this.db
+    const [existingVerification] = await this.db.connection
       .select()
       .from(UserVerificationSchema)
       .where(eq(UserVerificationSchema.userId, userId))
@@ -30,14 +30,14 @@ export class UserVerificationsService {
 
     if (existingVerification) {
       if (existingVerification.status === UserVerificationStatus.PENDING) {
-        throw new SpongBadRequestException({
+        throw new BadRequestException({
           success: false,
           message: 'Your verification request is already pending review.',
         })
       }
 
       if (existingVerification.status === UserVerificationStatus.APPROVED) {
-        throw new SpongBadRequestException({
+        throw new BadRequestException({
           success: false,
           message: 'Your account has already been verified.',
         })
@@ -63,7 +63,7 @@ export class UserVerificationsService {
     let type: 'created' | 'resubmitted'
 
     if (existingVerification) {
-      const [updatedVerification] = await this.db
+      const [updatedVerification] = await this.db.connection
         .update(UserVerificationSchema)
         .set({
           profileImage: {
@@ -90,7 +90,7 @@ export class UserVerificationsService {
       verification = updatedVerification
       type = 'resubmitted'
     } else {
-      const [createdVerification] = await this.db
+      const [createdVerification] = await this.db.connection
         .insert(UserVerificationSchema)
         .values({
           userId,
@@ -116,7 +116,7 @@ export class UserVerificationsService {
       type = 'created'
     }
 
-    const admins = await this.db
+    const admins = await this.db.connection
       .select()
       .from(UserSchema)
       .where(eq(UserSchema.role, UserRole.ADMIN))
@@ -142,29 +142,29 @@ export class UserVerificationsService {
   }
 
   async findPending(page = 1, limit = 10, offset = (page - 1) * limit) {
-   const safeOffset = Math.max(0, offset)
+    const safeOffset = Math.max(0, offset)
 
-  const [verifications, countResult] = await Promise.all([
-    this.db
-      .select()
-      .from(UserVerificationSchema)
-      .where(eq(UserVerificationSchema.status, UserVerificationStatus.PENDING))
-      .orderBy(asc(UserVerificationSchema.submittedAt))
-      .limit(limit)
-      .offset(safeOffset),
+    const [verifications, countResult] = await Promise.all([
+      this.db.connection
+        .select()
+        .from(UserVerificationSchema)
+        .where(eq(UserVerificationSchema.status, UserVerificationStatus.PENDING))
+        .orderBy(asc(UserVerificationSchema.submittedAt))
+        .limit(limit)
+        .offset(safeOffset),
 
-    this.db
-      .select({ total: count() })
-      .from(UserVerificationSchema)
-      .where(eq(UserVerificationSchema.status, UserVerificationStatus.PENDING)),
-  ])
+      this.db.connection
+        .select({ total: count() })
+        .from(UserVerificationSchema)
+        .where(eq(UserVerificationSchema.status, UserVerificationStatus.PENDING)),
+    ])
 
     const total = countResult[0]?.total ?? 0
 
     const userIds = [...new Set(verifications.map((verification) => verification.userId))]
 
     const users = userIds.length
-      ? await this.db
+      ? await this.db.connection
           .select({
             id: UserSchema.id,
             firstName: UserSchema.firstName,
@@ -177,7 +177,7 @@ export class UserVerificationsService {
       : []
 
     const profiles = userIds.length
-      ? await this.db
+      ? await this.db.connection
           .select({
             id: UserProfileSchema.id,
             userId: UserProfileSchema.userId,
@@ -222,28 +222,28 @@ export class UserVerificationsService {
       rejectionReason: string | null
     },
   ) {
-    const [verification] = await this.db
+    const [verification] = await this.db.connection
       .select()
       .from(UserVerificationSchema)
       .where(eq(UserVerificationSchema.id, verificationId))
       .limit(1)
 
     if (!verification) {
-      throw new SpongNotFoundException({
+      throw new NotFoundException({
         success: false,
         message: 'No verification request was found for this user.',
       })
     }
 
     if (verification.status !== UserVerificationStatus.PENDING) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'This verification request is not pending review.',
       })
     }
 
     if (body.status === UserVerificationStatus.REJECTED && !body.rejectionReason?.trim()) {
-      throw new SpongBadRequestException({
+      throw new BadRequestException({
         success: false,
         message: 'A rejection reason is required when rejecting a verification request.',
       })
@@ -259,7 +259,7 @@ export class UserVerificationsService {
       rejectionReason = body.rejectionReason!.trim()
     }
 
-    const [updatedVerification] = await this.db
+    const [updatedVerification] = await this.db.connection
       .update(UserVerificationSchema)
       .set({
         status: body.status,
