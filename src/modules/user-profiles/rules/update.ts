@@ -1,6 +1,6 @@
-import { defineSchema, rules } from 'riser-bob'
+import { defineSchema, Validator } from 'lykosjs'
 
 export const UpdateUserProfileRule = defineSchema({
-  bio: rules(['nullable', 'string', 'maxLength:300']),
-  website: rules(['nullable', 'url']),
+  bio: Validator.text().nullable(),
+  website: Validator.text().url().optional(),
 })
